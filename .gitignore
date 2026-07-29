@@ -1,0 +1,18 @@
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.pyc
+
+# Virtualenvs
+.venv/
+venv/
+
+# The service needs no credential. This stays as a backstop against one ever
+# being introduced.
+.env
+
+# Local database files. The service writes one on first run; CI builds its own.
+*.db
+
+# Generated evidence. Written by CI, never by hand.
+reports/
