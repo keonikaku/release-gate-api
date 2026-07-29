@@ -1,0 +1,13 @@
+# Test and CI tooling, on top of the runtime dependencies.
+-r requirements.txt
+
+pytest==9.0.3
+httpx==0.28.1
+
+# Validates response bodies against the schemas in the generated OpenAPI
+# document. The contract layer is only meaningful with a real validator behind
+# it, so this is a dependency rather than a hand written comparison.
+jsonschema==4.26.0
+
+# Linting and formatting, enforced on every pull request.
+ruff==0.16.0
