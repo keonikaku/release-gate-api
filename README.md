@@ -1,8 +1,108 @@
 # Release Gate API
 
+[![Post-merge](https://github.com/keonikaku/release-gate-api/actions/workflows/post-merge.yml/badge.svg?branch=main)](https://github.com/keonikaku/release-gate-api/actions/workflows/post-merge.yml)
+[![PR gate](https://github.com/keonikaku/release-gate-api/actions/workflows/pr-gate.yml/badge.svg?branch=main)](https://github.com/keonikaku/release-gate-api/actions/workflows/pr-gate.yml)
+
 A service that decides whether a proposed change may proceed to production, and
 a pipeline that will not promote it unless the regression suite passes against
 the merged result.
 
-The requirements are in [`docs/requirements.md`](docs/requirements.md). The
-service, the suite and the pipeline land next.
+The service is the thing under test. The testing is the point.
+
+## What this repository demonstrates
+
+- Requirements traced to tests, checked by the build rather than by a spreadsheet.
+- API testing across three layers, with the layer choice justified per rule.
+- Contract testing against a generated OpenAPI document, in both directions.
+- A pre-merge gate and a post-merge verification that are asked different questions.
+- A promotion that does not run when verification fails, recorded by GitHub and not by us.
+
+## Quick start
+
+```bash
+git clone https://github.com/keonikaku/release-gate-api.git
+cd release-gate-api
+pip install -r requirements-dev.txt
+pytest
+```
+
+That is the whole setup. No credentials, no database server, no browser, no
+network. The service under test is in this repository, so a red run means the
+code is wrong and never means anything else.
+
+To run the service:
+
+```bash
+uvicorn app.main:app
+# then open http://127.0.0.1:8000/docs
+```
+
+## The pipeline
+
+| | PR gate | Post-merge: `verify` | Post-merge: `promote` |
+|---|---|---|---|
+| File | `pr-gate.yml` | `post-merge.yml`, job 1 | `post-merge.yml`, job 2 |
+| Trigger | pull request into `main` | push to `main` | only when `verify` succeeded |
+| Question | is this safe to land? | is `main` shippable right now? | does this version go to production? |
+| Runs | lint, format, all four layers, collection integrity | the full suite, then a smoke against a freshly built instance over HTTP | tags the release |
+| On red | the change does not land | promotion does not run | does not run at all |
+| Badge above | second | first | covered by the first |
+
+**Promotion is blocked by GitHub, not by prose.** `promote` carries
+`needs: verify`. When verification fails, promotion shows as skipped in the run
+graph and the newest promoted tag stays where it was, so `main` sits ahead of
+production until the fix lands. That is REQ-3, and the evidence for it is the
+run history rather than this paragraph.
+
+**The badge is the post-merge workflow.** A pre-merge badge says the last pull
+request passed. This one says the code on `main` right now passes, which is the
+claim worth making, and it is only safe to make because nothing in the job
+touches a third party.
+
+## Test layers
+
+| Layer | Marker | Runs against | What it proves |
+|---|---|---|---|
+| Unit | `unit` | imported functions | rule logic, boundaries, the state graph |
+| Contract | `contract` | the generated OpenAPI document | the published description of the service is true |
+| Integration | `integration` | the running application over HTTP | endpoints, status codes, persistence |
+| Meta | `meta` | this repository | traceability, endpoint coverage, prose guards |
+
+Every test states its layer in its docstring, names the requirements it covers,
+and says why it is not at a different layer. The build fails if any of the three
+is missing. The reasoning per rule is in
+[`docs/test-design.md`](docs/test-design.md).
+
+## Traceability
+
+Requirement to test, machine enforced in `tests/meta/test_traceability.py`:
+
+- A requirement with no test and no stated gap fails the build.
+- A test claiming a requirement that does not exist fails the build.
+- A stated gap that is quietly covered fails the build, so the gaps list cannot
+  go stale.
+
+**The table is not all green, and that is deliberate.** REQ-3 is enforced by the
+pipeline rather than by the service, so no test in this repository can assert it,
+and REQ-1.7 is covered in half because branch reachability needs a version
+control integration this service does not have. Both are written down in the
+stated gaps section of [`docs/test-design.md`](docs/test-design.md), which was
+written before the suite was built.
+
+## Requirements
+
+[`docs/requirements.md`](docs/requirements.md). Seven submission rules, a
+lifecycle, and one rule that only the pipeline can enforce. Risk scoring, freeze
+windows, approval routing and conflict detection are deliberately out of scope:
+they are release manager concerns, and this repository is evidence about testing.
+
+## Documents
+
+- [`docs/requirements.md`](docs/requirements.md): the rules the gate applies.
+- [`docs/test-design.md`](docs/test-design.md): layer choice per rule, stated gaps, open questions.
+- [`docs/quality-gates.md`](docs/quality-gates.md): what has to be green, what does not, and who enforces it.
+- [`docs/decisions/`](docs/decisions): the decisions that forked, dated.
+
+## Author
+
+Keoni Kakugawa.
