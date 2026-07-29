@@ -18,7 +18,10 @@ name: Post-merge
 
 on:
   push:
-    branches: [main]
+    # `ci/**` is here so the whole workflow, including the promotion block, can
+    # be exercised on a branch. Verification can be made to fail there
+    # deliberately without touching the badge, which is pinned to `main`.
+    branches: [main, "ci/**"]
   workflow_dispatch:
 
 permissions:
@@ -27,7 +30,7 @@ permissions:
 concurrency:
   # Never cancel a run in flight: a cancelled promotion would leave the record
   # of what is in production ambiguous.
-  group: post-merge
+  group: post-merge-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -91,6 +94,11 @@ jobs:
   promote:
     name: Promote to production
     needs: verify
+    # Two conditions, and they are not redundant. `needs: verify` is the release
+    # gate: no promotion without a green suite (REQ-3). The ref check is the
+    # blast radius: only `main` can ever be promoted, so a run on a `ci/**`
+    # branch exercises verification and stops there.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
