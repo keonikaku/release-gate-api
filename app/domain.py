@@ -88,7 +88,7 @@ ON_CALL_MATRIX: dict[ReleaseType, tuple[Role, ...]] = {
     ReleaseType.SMALL: (Role.DEV, Role.BUSINESS),
     ReleaseType.SPRINT: (Role.DEVOPS, Role.PROD_SUPPORT, Role.DEV, Role.TECH_LEAD),
     ReleaseType.MONOREPO: (Role.DEVOPS, Role.PROD_SUPPORT),
-    ReleaseType.SPA: (Role.DEVOPS, Role.TECH_LEAD),
+    ReleaseType.SPA: (Role.DEVOPS, Role.TECH_LEAD, Role.PROD_SUPPORT),
 }
 
 # REQ-1.5a. Order matters: each stage must be evidenced, and in this sequence.
