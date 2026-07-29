@@ -1,0 +1,19 @@
+# Lint and format configuration. Enforced on every pull request by
+# .github/workflows/pr-gate.yml and again on main by post-merge.yml.
+
+line-length = 92
+target-version = "py312"
+
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "W",   # pycodestyle warnings
+    "I",   # import ordering
+    "B",   # bugbear: mutable defaults, silent excepts, loop variable capture
+    "UP",  # pyupgrade
+]
+
+[lint.per-file-ignores]
+# Test bodies use bare asserts, which is the point of them.
+"tests/*" = ["B011"]
