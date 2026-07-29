@@ -24,7 +24,7 @@ admits the mechanism is a human.
 | No em dash, no credential literal | `tests/meta/test_prose_guards.py` | the suite | yes |
 | Post-merge verification | `.github/workflows/post-merge.yml`, job `verify` | the workflow | runs after the merge |
 | Promotion | `.github/workflows/post-merge.yml`, job `promote` | `needs: verify`, so by GitHub | not applicable |
-| Not squash merging | convention | the person merging | yes, by convention |
+| Not squash merging | repository setting | GitHub: squash and rebase merging are disabled | yes, by the platform |
 | Regression test written before its fix | convention | the person writing it | yes, by convention |
 
 ---
