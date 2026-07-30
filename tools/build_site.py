@@ -1,0 +1,723 @@
+"""Build the evidence site from the artifacts of a real run.
+
+Every page is a function of files this run produced: the JUnit report, the
+captured exchanges, the generated OpenAPI document, GitHub's own record of the
+runs, and the ledger. Nothing is authored here except the sentences that explain
+what the reader is looking at, and every one of those sits next to the data it
+describes.
+
+If an input is missing, the page says the input is missing. It never falls back
+to the previous run's numbers, because a dashboard that quietly shows stale data
+is worse than one that admits it has none.
+
+Usage:
+    python -m tools.build_site --reports reports --ledger results/runs.csv \\
+        --out site --sha $GITHUB_SHA
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from pathlib import Path
+
+from tools import evidence, readout, results, risk, runs, traceability
+from tools.render import esc, outcome_pill, page, pill, time_tag
+
+REPO = "keonikaku/release-gate-api"
+REPO_URL = f"https://github.com/{REPO}"
+
+
+@dataclass(frozen=True)
+class Inputs:
+    """Everything the site is built from, already loaded."""
+
+    rows: tuple[traceability.RequirementRow, ...]
+    cases: tuple[traceability.TestCase, ...]
+    run_results: results.RunResults | None
+    ledger: list[runs.RunRow]
+    captured: list[evidence.CapturedCase]
+    openapi: dict | None
+    gh_runs: list[dict]
+    production: dict | None
+    open_blockers: int | None
+    sha: str
+    run_id: str
+    generated_at: datetime
+
+
+def load_json(path: Path) -> dict | list | None:
+    """Read a JSON file, or None if this run did not produce it."""
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+
+
+def gather(reports: Path, ledger: Path, sha: str, run_id: str) -> Inputs:
+    """Load every input. Missing files stay missing."""
+    junit = reports / "junit.xml"
+    blockers = load_json(reports / "blockers.json")
+    gh_runs = load_json(reports / "gh-runs.json")
+    cases = traceability.test_cases()
+    return Inputs(
+        rows=traceability.rows(cases),
+        cases=cases,
+        run_results=results.parse_junit(junit) if junit.exists() else None,
+        ledger=runs.read_runs(ledger),
+        captured=evidence.load(reports / "evidence"),
+        openapi=load_json(reports / "openapi.json"),
+        gh_runs=gh_runs if isinstance(gh_runs, list) else [],
+        production=load_json(reports / "production.json"),
+        open_blockers=(blockers or {}).get("open") if isinstance(blockers, dict) else None,
+        sha=sha,
+        run_id=run_id,
+        generated_at=datetime.now(UTC),
+    )
+
+
+def documented_endpoints(spec: dict | None) -> tuple[str, ...]:
+    """Operations in the generated spec, as `METHOD /path`."""
+    if not spec:
+        return ()
+    return tuple(
+        f"{method.upper()} {path}"
+        for path, operations in spec.get("paths", {}).items()
+        for method in operations
+    )
+
+
+# Pages -----------------------------------------------------------------------
+
+
+def dashboard(data: Inputs, decision: readout.Readout) -> str:
+    """The state of the gate right now, and how it got there."""
+    verdict_class = "go" if decision.decision == readout.GO else "nogo"
+    production = data.production or {}
+    version = production.get("version")
+    promoted_sha = production.get("commit_sha", "")
+
+    if not version:
+        drift = pill("nothing promoted yet", "warn")
+    elif promoted_sha and data.sha and promoted_sha[:7] != data.sha[:7]:
+        drift = pill("main is ahead of production", "warn")
+    else:
+        drift = pill("production is on this commit", "ok")
+
+    suite = data.run_results
+    suite_line = (
+        f"{suite.passed} of {suite.total} passed" if suite else "no report from this run"
+    )
+
+    criteria_rows = "".join(
+        f"<tr><td class='k'><code>{esc(c.id)}</code></td>"
+        f"<td class='k'>{esc(c.statement)}</td>"
+        f"<td>{pill(c.verdict, 'ok' if c.met else ('bad' if c.met is False else 'warn'))}</td>"
+        f"<td>{esc(c.detail)}</td></tr>"
+        for c in decision.criteria
+    )
+
+    executed = results.counts_by_layer(suite) if suite else {}
+    widest = max(executed.values(), default=1) or 1
+    layer_rows = (
+        "".join(
+            f"<tr><td class='k'>{esc(layer)}</td><td class='mono'>{count}</td>"
+            f"<td style='width:55%'><div class='bar'><span style='width:"
+            f"{round(100 * count / widest)}%'></span></div></td></tr>"
+            for layer, count in sorted(executed.items(), key=lambda item: -item[1])
+        )
+        or "<tr><td colspan='3' class='dim'>No JUnit report from this run.</td></tr>"
+    )
+
+    gaps = [row for row in data.rows if row.gap]
+    return f"""
+<h1>Is <code>main</code> shippable right now?</h1>
+<p class="lede">This page is regenerated by the post-merge workflow on every push
+to <code>main</code>. The verdict below is computed from five stated criteria,
+not typed in.</p>
+
+<div class="banner">
+  <div>
+    <div class="label">Release readiness</div>
+    <div class="verdict {verdict_class}">{esc(decision.decision)}</div>
+  </div>
+  <div>
+    <div class="label">Commit</div>
+    <div class="mono">{esc(decision.commit_sha[:7] or "unknown")}</div>
+  </div>
+  <div>
+    <div class="label">Computed</div>
+    <div>{time_tag(decision.generated_at)}</div>
+  </div>
+  <div>
+    <div class="label">Run</div>
+    <div><a href="{REPO_URL}/actions/runs/{esc(decision.run_id)}">{esc(decision.run_id or "local")}</a></div>
+  </div>
+</div>
+
+<div class="note">A criterion that could not be evaluated counts as NO-GO. Unable
+to confirm is not the same as confirmed, and in a release decision the two must
+never collapse into each other.</div>
+
+<div class="grid g3" style="margin-top:22px">
+  <div class="card">
+    <div class="label">Currently in production</div>
+    <div class="kpi">{esc(version or "none")}</div>
+    <p>{drift}</p>
+    <p class="dim">{"Promoted " + time_tag(production.get("published_at")) if version else "No release has been promoted."}</p>
+  </div>
+  <div class="card">
+    <div class="label">Suite on this commit</div>
+    <div class="kpi">{esc(suite_line)}</div>
+    <p>{outcome_pill("pass" if suite and suite.green else ("fail" if suite else None))}</p>
+    <p class="dim">{esc(f"{suite.duration:.2f}s" if suite else "")}</p>
+  </div>
+  <div class="card">
+    <div class="label">Post-merge runs recorded</div>
+    <div class="kpi">{len(data.ledger)}</div>
+    <p class="dim">{esc(f"{runs.pass_rate(data.ledger):.0%} passed")}</p>
+  </div>
+</div>
+
+<h2>The five criteria</h2>
+<table>
+<tr><th>ID</th><th>Criterion</th><th>Verdict</th><th>Evidence</th></tr>
+{criteria_rows}
+</table>
+
+<h2>What ran, by layer</h2>
+<p>Executed cases, counted from the JUnit report of this run. Parametrised cases
+count once per instance, because that is what ran.</p>
+<table>
+<tr><th>Layer</th><th>Cases</th><th></th></tr>
+{layer_rows}
+</table>
+
+<h2>Run history</h2>
+{runs_chart(data.ledger)}
+{runs_table(data.ledger)}
+
+<h2>What is not covered</h2>
+<p>{len(gaps)} requirements are recorded as gaps rather than shown green. The
+reasoning for each is on the <a href="traceability.html">traceability page</a>,
+and it was written before the suite was built.</p>
+"""
+
+
+def runs_chart(ledger: list[runs.RunRow]) -> str:
+    """A bar per recorded run, green for pass and red for fail."""
+    if not ledger:
+        return "<p class='dim'>No runs recorded yet. The ledger is written by CI.</p>"
+    recent = ledger[-40:]
+    tallest = max((row.total for row in recent), default=1) or 1
+    width, height, gap = 18, 120, 4
+    bars = []
+    for index, row in enumerate(recent):
+        bar_height = max(4, round(height * row.total / tallest))
+        colour = "#34d399" if row.result == runs.RESULT_PASS else "#f87171"
+        bars.append(
+            f'<rect x="{index * (width + gap)}" y="{height - bar_height}" '
+            f'width="{width}" height="{bar_height}" fill="{colour}" rx="3">'
+            f"<title>run {row.run_number}: {row.result}, {row.total} cases, "
+            f"{esc(row.short_sha)}</title></rect>"
+        )
+    total_width = len(recent) * (width + gap)
+    return (
+        f'<svg viewBox="0 0 {total_width} {height}" width="100%" height="140" '
+        f'role="img" aria-label="cases run per post-merge run">{"".join(bars)}</svg>'
+    )
+
+
+def runs_table(ledger: list[runs.RunRow]) -> str:
+    """The ledger, newest first."""
+    if not ledger:
+        return ""
+    body = "".join(
+        f"<tr><td class='k mono'>{row.run_number}</td>"
+        f"<td>{outcome_pill(row.result)}</td>"
+        f"<td class='mono'>{esc(row.short_sha)}</td>"
+        f"<td>{esc(row.branch)}</td>"
+        f"<td>{time_tag(row.started_at)}</td>"
+        f"<td class='mono'>{row.passed}/{row.total}</td>"
+        f"<td class='mono'>{esc(row.promoted_version or '-')}</td>"
+        f"<td><a href='{REPO_URL}/actions/runs/{esc(row.run_id)}'>run</a></td></tr>"
+        for row in reversed(ledger[-20:])
+    )
+    return f"""<table>
+<tr><th>#</th><th>Result</th><th>Commit</th><th>Branch</th><th>Started</th>
+<th>Passed</th><th>Promoted</th><th></th></tr>
+{body}</table>
+<p class="dim">The ledger lives on the <code>gh-pages</code> branch and is
+appended only by the publish job. It is not on <code>main</code>, so there is no
+branch on which a person could edit it as part of a normal change.</p>"""
+
+
+def demo_page(data: Inputs) -> str:
+    """The two run demo, built from GitHub's record of the runs."""
+    promoted = next(
+        (
+            run
+            for run in data.gh_runs
+            if job_result(run, "Promote") == "success" and run.get("headBranch") == "main"
+        ),
+        None,
+    )
+    blocked = next(
+        (
+            run
+            for run in data.gh_runs
+            if job_result(run, "Verify") in ("failure", "startup_failure")
+            and job_result(run, "Promote") == "skipped"
+        ),
+        None,
+    )
+
+    return f"""
+<h1>Two runs: one ships, one does not</h1>
+<p class="lede">The same workflow, twice. In the first the suite passes and a
+release is tagged. In the second a test fails, promotion never starts, and
+production stays where it was. The difference is enforced by GitHub, not
+described by this page.</p>
+
+<h2>Run 1: the change lands and is promoted</h2>
+{run_card(promoted, "The suite passed, so promotion ran and tagged a release.")}
+
+<h2>Run 2: the gate holds</h2>
+<div class="note"><strong>The defect in this run was introduced deliberately to
+exercise the process.</strong> It is not a real defect, it is not in any defect
+log, and the branch it lives on is never merged. The mechanism being shown is
+real either way, so labelling it costs nothing.</div>
+{run_card(blocked, "Verification failed, so promotion was skipped and nothing was tagged.")}
+
+<h2>What a reviewer can check without taking our word for it</h2>
+<table>
+<tr><th>Claim</th><th>Where it is visible</th></tr>
+<tr><td class="k">Promotion did not run</td><td>the run graph shows
+<code>Promote to production</code> as skipped</td></tr>
+<tr><td class="k">Nothing was released</td><td>the
+<a href="{REPO_URL}/releases">releases page</a> has no tag for that commit</td></tr>
+<tr><td class="k">The block is structural</td><td><code>needs: verify</code> in
+<a href="{REPO_URL}/blob/main/.github/workflows/post-merge.yml">post-merge.yml</a></td></tr>
+<tr><td class="k">The failing test is the one written for that rule</td>
+<td>the failure in the run log names the case</td></tr>
+</table>
+"""
+
+
+def job_result(run: dict, prefix: str) -> str:
+    """The conclusion of the job whose name starts with `prefix`."""
+    for job in run.get("jobs", []):
+        if str(job.get("name", "")).startswith(prefix):
+            return str(job.get("conclusion") or job.get("status") or "")
+    return ""
+
+
+def run_card(run: dict | None, meaning: str) -> str:
+    """One run, with its jobs and its real URL."""
+    if not run:
+        return (
+            "<div class='card'><p class='dim'>This run has not happened yet. "
+            "The page will show it when it does, with its real URL.</p></div>"
+        )
+    jobs = "".join(
+        f"<tr><td class='k'>{esc(job.get('name'))}</td>"
+        f"<td>{outcome_pill(job.get('conclusion'))}</td></tr>"
+        for job in run.get("jobs", [])
+    )
+    return f"""<div class="card">
+<table>
+<tr><th>Job</th><th>Outcome</th></tr>
+{jobs}
+</table>
+<table>
+<tr><td class="k">Commit</td><td class="mono">{esc(str(run.get("headSha", ""))[:7])}
+{esc(run.get("displayTitle", ""))}</td></tr>
+<tr><td class="k">Branch</td><td class="mono">{esc(run.get("headBranch"))}</td></tr>
+<tr><td class="k">Started</td><td>{time_tag(run.get("createdAt"))}</td></tr>
+<tr><td class="k">What it means</td><td>{esc(meaning)}</td></tr>
+<tr><td class="k">GitHub's record</td>
+<td><a href="{esc(run.get("url"))}">{esc(run.get("url"))}</a></td></tr>
+</table>
+</div>"""
+
+
+def risk_section(data: Inputs) -> str:
+    """Coverage read against consequence, when the ratings exist.
+
+    Returns an empty string when no rating has been recorded. A view built
+    entirely from placeholders would look like evidence and be none.
+    """
+    ratings = risk.recorded()
+    if not ratings:
+        return ""
+
+    order = {"high": 0, "medium": 1, "low": 2}
+    suite = data.run_results
+    rated_rows = [row for row in data.rows if row.requirement in ratings]
+    rated_rows.sort(key=lambda row: order.get(ratings[row.requirement].rating, 3))
+
+    body = []
+    for row in rated_rows:
+        rating = ratings[row.requirement]
+        outcomes = [
+            suite.outcome_for(case.node_id) if suite else None for case in row.cases
+        ]
+        result = "not run"
+        kind = "warn"
+        if outcomes and all(outcome == results.PASSED for outcome in outcomes):
+            result, kind = "all passing", "ok"
+        elif any(outcome in (results.FAILED, results.ERROR) for outcome in outcomes):
+            result, kind = "failing", "bad"
+        thin = rating.rating == "high" and len(row.cases) < 2
+        body.append(
+            f"<tr><td class='k mono'>{esc(row.requirement)}</td>"
+            f"<td>{pill(rating.rating, 'bad' if rating.rating == 'high' else 'warn' if rating.rating == 'medium' else 'ok')}</td>"
+            f"<td class='mono'>{len(row.cases)}</td>"
+            f"<td class='mono'>{esc(', '.join(row.layers) or '-')}</td>"
+            f"<td>{pill(result, kind)}</td>"
+            f"<td>{pill('thin for its risk', 'bad') if thin else ''}</td>"
+            f"<td>{esc(rating.reasoning)}</td></tr>"
+        )
+
+    return f"""
+<h2>Risk based coverage</h2>
+<p>Each rating below was assigned by the author in
+<code>docs/risk-ratings.md</code>. Nothing here infers one. The last flag marks a
+high risk rule carried by fewer than two cases, which is the pattern worth
+arguing about in a review.</p>
+<table>
+<tr><th>Requirement</th><th>Risk</th><th>Cases</th><th>Layers</th><th>Last result</th>
+<th></th><th>Reasoning</th></tr>
+{"".join(body)}
+</table>
+"""
+
+
+def traceability_page(data: Inputs) -> str:
+    """Requirement to case to endpoint to layer to result."""
+    suite = data.run_results
+    body = []
+    for row in data.rows:
+        status_kind = {
+            "COVERED": "ok",
+            "PARTIAL": "warn",
+            "DECLARED GAP": "warn",
+            "NOT COVERED": "bad",
+        }[row.status]
+        if row.cases:
+            case_list = "<br>".join(
+                f"<code>{esc(case.name)}</code> "
+                + (
+                    outcome_pill(suite.outcome_for(case.node_id))
+                    if suite
+                    else pill("not run", "warn")
+                )
+                for case in row.cases
+            )
+        else:
+            case_list = "<span class='dim'>none</span>"
+        body.append(
+            f"<tr><td class='k mono'>{esc(row.requirement)}</td>"
+            f"<td>{pill(row.status, status_kind)}</td>"
+            f"<td>{case_list}</td>"
+            f"<td class='mono'>{esc(', '.join(row.endpoints) or '-')}</td>"
+            f"<td class='mono'>{esc(', '.join(row.layers) or '-')}</td></tr>"
+        )
+
+    gap_notes = "".join(f"<p>{esc(note)}</p>" for note in traceability.gap_notes())
+    counts = {
+        status: sum(1 for row in data.rows if row.status == status)
+        for status in ("COVERED", "PARTIAL", "DECLARED GAP", "NOT COVERED")
+    }
+    return f"""
+<h1>Traceability</h1>
+<p class="lede">Every requirement, the cases that cover it, the endpoint they
+exercise, the layer they sit at, and what happened when they last ran. The same
+module that generates this table fails the build when a requirement has no test
+and no stated gap.</p>
+
+<div class="grid g3">
+  <div class="card"><div class="label">Covered</div>
+    <div class="kpi">{counts["COVERED"]}</div>
+    <p class="dim">tested, nothing declared missing</p></div>
+  <div class="card"><div class="label">Partial</div>
+    <div class="kpi">{counts["PARTIAL"]}</div>
+    <p class="dim">tested, with a declared hole</p></div>
+  <div class="card"><div class="label">Declared gap</div>
+    <div class="kpi">{counts["DECLARED GAP"]}</div>
+    <p class="dim">no test, and a written reason why</p></div>
+  <div class="card"><div class="label">Untraced</div>
+    <div class="kpi">{counts["NOT COVERED"]}</div>
+    <p class="dim">fails the build</p></div>
+</div>
+
+<div class="note">This table is not all green on purpose. A table where every row
+is covered and nothing is missing reads as fabricated, and the build fails if the
+gaps below are ever quietly closed.</div>
+
+<table>
+<tr><th>Requirement</th><th>Status</th><th>Cases</th><th>Endpoint</th><th>Layer</th></tr>
+{"".join(body)}
+</table>
+
+<h2>On case IDs</h2>
+<p>The case ID is the name of the test function. There is no separate catalogue
+of case numbers, because a catalogue that nothing enforces drifts from the suite
+within a month. The name in the table is the name in the file, and the build
+fails if a case claims a requirement that does not exist.</p>
+
+{risk_section(data)}
+
+<h2>Stated gaps</h2>
+<p>Written before the suite was built, so they are a design decision rather than
+an excuse made afterwards.</p>
+{gap_notes}
+"""
+
+
+def evidence_page(data: Inputs) -> str:
+    """Captured request and response pairs, grouped by requirement."""
+    if not data.captured:
+        return """
+<h1>Captured exchanges</h1>
+<p class="lede">This run captured no exchanges. Evidence is a side effect of
+running the suite with capture switched on, and the page shows nothing rather
+than showing an earlier run's.</p>"""
+
+    grouped = evidence.by_requirement(data.captured)
+    sections = []
+    for requirement in sorted(grouped):
+        blocks = []
+        for case in grouped[requirement]:
+            exchanges = "".join(
+                f"""<details class="exchange">
+<summary>{esc(exchange.method)} <code>{esc(exchange.path)}</code>
+&rarr; {esc(exchange.status)}</summary>
+<div class="body">
+<div class="label">Request</div>
+<pre>{esc(json.dumps(exchange.request_body, indent=2) if exchange.request_body is not None else "no body")}</pre>
+<div class="label">Response</div>
+<pre>{esc(json.dumps(exchange.response_body, indent=2)[:2400] if exchange.response_body is not None else "no body")}</pre>
+</div></details>"""
+                for exchange in case.exchanges
+            )
+            blocks.append(
+                f"""<div class="card" style="margin:14px 0">
+<h3>{esc(case.summary)}</h3>
+<p class="dim mono">{esc(case.node_id)}</p>
+<p>{outcome_pill(case.outcome)} {pill(case.layer)}
+{pill("captured " + case.commit_sha[:7] if case.commit_sha else "captured locally")}</p>
+{exchanges}
+</div>"""
+            )
+        sections.append(f"<h2>{esc(requirement)}</h2>{''.join(blocks)}")
+
+    return f"""
+<h1>Captured exchanges</h1>
+<p class="lede">The bytes the suite actually sent and received, recorded as a
+side effect of the run. Each block names the case that made the call, what it
+asserts, whether it passed, and the commit it ran against.</p>
+<p class="dim">{len(data.captured)} cases captured
+{sum(len(case.exchanges) for case in data.captured)} exchanges.</p>
+{"".join(sections)}
+"""
+
+
+def api_page(data: Inputs) -> str:
+    """The generated OpenAPI document, rendered."""
+    spec = data.openapi
+    if not spec:
+        return """
+<h1>API</h1>
+<p class="lede">This run produced no OpenAPI document.</p>"""
+
+    operations = []
+    for path, methods in spec.get("paths", {}).items():
+        for method, operation in methods.items():
+            responses = "".join(
+                f"<tr><td class='k mono'>{esc(status)}</td>"
+                f"<td>{esc(response.get('description', ''))}</td>"
+                f"<td class='mono'>{esc(schema_name(response))}</td></tr>"
+                for status, response in sorted(operation.get("responses", {}).items())
+            )
+            operations.append(
+                f"""<div class="card" style="margin:14px 0">
+<h3><span class="pill">{esc(method.upper())}</span> <code>{esc(path)}</code></h3>
+<p>{esc(operation.get("summary", ""))}</p>
+<p class="dim">{esc(operation.get("description", ""))}</p>
+<table><tr><th>Status</th><th>Meaning</th><th>Body</th></tr>{responses}</table>
+</div>"""
+            )
+
+    schemas = "".join(
+        f"<tr><td class='k mono'>{esc(name)}</td>"
+        f"<td class='mono'>{esc(', '.join(schema.get('required', [])) or '-')}</td>"
+        f"<td>{pill('extra fields refused', 'ok') if schema.get('additionalProperties') is False else pill('extra fields allowed', 'warn')}</td></tr>"
+        for name, schema in sorted(spec.get("components", {}).get("schemas", {}).items())
+    )
+
+    return f"""
+<h1>API</h1>
+<p class="lede">Generated from the application on every run, never hand
+maintained. The contract layer validates real response bodies against this
+document in both directions, so a response carrying a field this page does not
+list fails the build.</p>
+<p><a href="openapi.json">Download the raw document</a></p>
+{"".join(operations)}
+<h2>Schemas</h2>
+<table><tr><th>Schema</th><th>Required fields</th><th>Unknown fields</th></tr>
+{schemas}</table>
+"""
+
+
+def schema_name(response: dict) -> str:
+    """The schema a documented response points at, as a readable name."""
+    content = response.get("content", {}).get("application/json", {})
+    schema = content.get("schema", {})
+    reference = schema.get("$ref", "")
+    return reference.rsplit("/", 1)[-1] if reference else "-"
+
+
+def team_page(data: Inputs) -> str:
+    """How the work was divided, and what each role may not do."""
+    return f"""
+<h1>How this was built</h1>
+<p class="lede">The work was divided by role, with the separation of duties
+written down before it started. The column that matters is the third one: what
+each role is not allowed to do.</p>
+
+<table>
+<tr><th>Role</th><th>Responsible for</th><th>May not</th><th>Gate before merge</th></tr>
+<tr><td class="k">Requirements and approval</td><td>the rules, the risk calls,
+every merge</td><td>-</td><td>-</td></tr>
+<tr><td class="k">Planning</td><td>scope, sequence, acceptance criteria</td>
+<td>write production code</td><td>-</td></tr>
+<tr><td class="k">Build</td><td>implementation, on branches</td>
+<td>push to <code>main</code>; approve its own work</td>
+<td>verification must pass</td></tr>
+<tr><td class="k">Verification</td><td>independent audit against the acceptance
+criteria</td><td>write the code it audits</td><td>-</td></tr>
+<tr><td class="k">Writing</td><td>wording on published surfaces</td>
+<td>invent facts</td><td>-</td></tr>
+</table>
+
+<div class="note">The rule that costs something: <strong>the build role cannot
+approve its own work, and cannot merge it.</strong> <code>main</code> is
+protected, both gates are required, and force pushes are refused by the
+platform rather than by agreement.</div>
+
+<h2>What is inspectable</h2>
+<table>
+<tr><th>Claim</th><th>Where to check it</th></tr>
+<tr><td class="k">History is not tidied</td>
+<td>squash and rebase merging are disabled on the repository, so every merge
+keeps its commits, including the corrections</td></tr>
+<tr><td class="k">Corrections are preserved</td>
+<td><a href="{REPO_URL}/commits/main">the commit log</a>: a commit that corrects
+an earlier one says what was wrong</td></tr>
+<tr><td class="k">The gate blocks</td>
+<td><a href="{REPO_URL}/actions/workflows/post-merge.yml">run history</a>, where a
+failed verification leaves promotion skipped</td></tr>
+<tr><td class="k">Requirements came first</td>
+<td>the requirements document is the first commit in the repository</td></tr>
+<tr><td class="k">The test design came before the suite</td>
+<td><code>docs/test-design.md</code> is committed before any test file</td></tr>
+</table>
+
+<h2>On attribution, plainly</h2>
+<p>Commits in this repository are authored under one GitHub account. What is
+inspectable is the sequence of the work and what each change says about itself,
+not a per commit signature for each role. Saying so is cheaper than implying an
+attribution the git history does not carry.</p>
+
+<p class="dim">Generated from commit <code>{esc(data.sha[:7] or "unknown")}</code>.</p>
+"""
+
+
+# Entry point -----------------------------------------------------------------
+
+
+def build(reports: Path, ledger: Path, out: Path, sha: str, run_id: str) -> list[Path]:
+    """Write every page. Returns what was written."""
+    data = gather(reports, ledger, sha, run_id)
+    decision = readout.compute(
+        results=data.run_results,
+        rows=data.rows,
+        documented_endpoints=documented_endpoints(data.openapi),
+        claimed_endpoints=traceability.claimed_endpoints(data.cases),
+        claimed_requirements=traceability.claimed_requirements(data.cases),
+        open_blockers=data.open_blockers,
+        commit_sha=sha,
+        generated_at=data.generated_at.isoformat(),
+        run_id=run_id,
+    )
+
+    pages = {
+        "index.html": ("Release gate: current state", dashboard(data, decision)),
+        "demo.html": ("Two runs: one ships, one does not", demo_page(data)),
+        "traceability.html": ("Traceability", traceability_page(data)),
+        "evidence.html": ("Captured exchanges", evidence_page(data)),
+        "api.html": ("API", api_page(data)),
+        "team.html": ("How this was built", team_page(data)),
+    }
+
+    out.mkdir(parents=True, exist_ok=True)
+    written = []
+    for name, (title, body) in pages.items():
+        target = out / name
+        target.write_text(page(title, name, body, data.generated_at, sha), encoding="utf-8")
+        written.append(target)
+
+    if data.openapi:
+        spec = out / "openapi.json"
+        spec.write_text(json.dumps(data.openapi, indent=2) + "\n", encoding="utf-8")
+        written.append(spec)
+
+    readout_json = out / "readout.json"
+    readout_json.write_text(
+        json.dumps(
+            {
+                "decision": decision.decision,
+                "commit_sha": decision.commit_sha,
+                "generated_at": decision.generated_at,
+                "run_id": decision.run_id,
+                "criteria": [
+                    {
+                        "id": c.id,
+                        "statement": c.statement,
+                        "verdict": c.verdict,
+                        "detail": c.detail,
+                    }
+                    for c in decision.criteria
+                ],
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    written.append(readout_json)
+    return written
+
+
+def main() -> None:
+    """Command line entry point."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--reports", default="reports", type=Path)
+    parser.add_argument("--ledger", default="results/runs.csv", type=Path)
+    parser.add_argument("--out", default="site", type=Path)
+    parser.add_argument("--sha", default="")
+    parser.add_argument("--run-id", default="")
+    args = parser.parse_args()
+
+    written = build(args.reports, args.ledger, args.out, args.sha, args.run_id)
+    for path in written:
+        print(f"wrote {path}")
+
+
+if __name__ == "__main__":
+    main()

@@ -24,6 +24,8 @@ admits the mechanism is a human.
 | No em dash, no credential literal | `tests/meta/test_prose_guards.py` | the suite | yes |
 | Post-merge verification | `.github/workflows/post-merge.yml`, job `verify` | the workflow | runs after the merge |
 | Promotion | `.github/workflows/post-merge.yml`, job `promote` | `needs: verify`, so by GitHub | not applicable |
+| Evidence publishing | `.github/workflows/post-merge.yml`, job `publish` | the workflow, on `main` only | runs after every post-merge run, green or red |
+| The ledger is machine written | `tools/runs.py` and decision 0006 | the branch layout, plus a monotonic run number check | yes |
 | Not squash merging | repository setting | GitHub: squash and rebase merging are disabled | yes, by the platform |
 | Regression test written before its fix | convention | the person writing it | yes, by convention |
 
@@ -46,6 +48,17 @@ The full suite, then a smoke run against a freshly built instance served over
 HTTP on a database that did not exist a moment ago (`tools/smoke.py`). The suite
 drives the application in process, which is fast and proves nothing about
 serving. Both are worth having and they answer different questions.
+
+### Post-merge `publish`: what the run leaves behind
+
+Runs whether verification passed or failed, and whether promotion happened or was
+skipped. It appends one row to the ledger on `gh-pages` and regenerates the
+evidence site from this run's artifacts: the JUnit report, the captured
+exchanges, the generated OpenAPI document, and GitHub's own record of the runs.
+
+A dashboard that only updates on green days would show a pass rate of one hundred
+percent and evidence nothing, so the failing runs are recorded too. See
+`docs/decisions/0006-evidence-lives-on-its-own-branch.md`.
 
 ### Post-merge `promote`: does this version go to production
 

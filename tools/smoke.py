@@ -6,7 +6,7 @@ database that did not exist a moment ago: one accepted submission, one refusal,
 one illegal transition. If any of those three answers is wrong the process exits
 non zero and the verify job fails, which is what stops promotion.
 
-Usage: python tools/smoke.py http://127.0.0.1:8000
+Usage: python -m tools.smoke http://127.0.0.1:8000
 """
 
 from __future__ import annotations
@@ -15,9 +15,7 @@ import sys
 import urllib.error
 import urllib.request
 
-sys.path.insert(0, ".")
-
-from tests.factories import on_call_entry, valid_payload  # noqa: E402
+from tests.factories import on_call_entry, valid_payload
 
 TIMEOUT_SECONDS = 10
 

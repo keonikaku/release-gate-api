@@ -17,3 +17,8 @@ select = [
 [lint.per-file-ignores]
 # Test bodies use bare asserts, which is the point of them.
 "tests/*" = ["B011"]
+# These two hold HTML, CSS and one small script. Wrapping markup to satisfy a
+# source line-length rule makes the generated page harder to read, not the
+# generator. Every other rule still applies to them.
+"tools/render.py" = ["E501"]
+"tools/build_site.py" = ["E501"]

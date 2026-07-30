@@ -4,7 +4,7 @@ Generated from the application on every run, never hand maintained. The contract
 layer validates against the same document this exports, so the published spec
 cannot drift from the service without a test noticing.
 
-Usage: python tools/export_openapi.py reports/openapi.json
+Usage: python -m tools.export_openapi reports/openapi.json
 """
 
 from __future__ import annotations
@@ -13,9 +13,7 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, ".")
-
-from app.main import app  # noqa: E402
+from app.main import app
 
 
 def main(destination: str) -> None:

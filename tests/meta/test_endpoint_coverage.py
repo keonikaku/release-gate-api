@@ -8,12 +8,8 @@ renamed.
 
 from __future__ import annotations
 
-import importlib
-import inspect
-import pkgutil
-
-import tests.integration
 from app.main import app
+from tools import traceability
 
 
 def documented_endpoints() -> set[str]:
@@ -26,24 +22,8 @@ def documented_endpoints() -> set[str]:
     }
 
 
-def claimed_endpoints() -> dict[str, set[str]]:
-    """Endpoint to the integration tests marked as exercising it."""
-    claims: dict[str, set[str]] = {}
-    for module_info in pkgutil.iter_modules(tests.integration.__path__):
-        module = importlib.import_module(f"tests.integration.{module_info.name}")
-        for name, function in inspect.getmembers(module, inspect.isfunction):
-            if not name.startswith("test_"):
-                continue
-            for mark in getattr(function, "pytestmark", []):
-                if mark.name == "endpoint":
-                    claims.setdefault(mark.args[0], set()).add(
-                        f"{module_info.name}::{name}"
-                    )
-    return claims
-
-
 DOCUMENTED = documented_endpoints()
-CLAIMED = claimed_endpoints()
+CLAIMED = traceability.claimed_endpoints()
 
 
 def test_the_spec_declares_endpoints():

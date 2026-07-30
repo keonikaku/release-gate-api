@@ -8,57 +8,27 @@ Three directions, and the third is the one that matters.
 3. At least one requirement is honestly recorded as uncovered. A traceability
    table where everything is green and nothing is missing reads as fabricated,
    and this repository would rather fail the build than publish one.
+
+The collection itself lives in `tools/traceability.py`, which is also what
+generates the published table. One module, two consumers, so the table a
+reviewer reads and the gate that fails the build cannot disagree.
 """
 
 from __future__ import annotations
 
-import ast
-import re
 from pathlib import Path
 
+from tools import traceability
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
-TESTS_ROOT = REPO_ROOT / "tests"
-REQUIREMENTS = REPO_ROOT / "docs" / "requirements.md"
-TEST_DESIGN = REPO_ROOT / "docs" / "test-design.md"
 
-REQ_ID = re.compile(r"REQ-\d+(?:\.\d+[a-z]?)?")
-
-
-def requirement_ids() -> set[str]:
-    """Every requirement ID stated in the requirements document."""
-    return set(REQ_ID.findall(REQUIREMENTS.read_text(encoding="utf-8")))
-
-
-def covered_ids() -> dict[str, set[str]]:
-    """Requirement ID to the tests that claim to cover it."""
-    claims: dict[str, set[str]] = {}
-    for path in sorted(TESTS_ROOT.rglob("test_*.py")):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        for node in ast.walk(tree):
-            if not (isinstance(node, ast.FunctionDef) and node.name.startswith("test_")):
-                continue
-            doc = ast.get_docstring(node) or ""
-            match = re.search(r"^\s*Covers:(.*)$", doc, flags=re.MULTILINE)
-            if not match:
-                continue
-            for requirement in REQ_ID.findall(match.group(1)):
-                claims.setdefault(requirement, set()).add(
-                    f"{path.relative_to(REPO_ROOT)}::{node.name}"
-                )
-    return claims
-
-
-def stated_gap_ids() -> set[str]:
-    """Requirement IDs named in the stated gaps section of the test design."""
-    text = TEST_DESIGN.read_text(encoding="utf-8")
-    start = text.index("## Stated gaps")
-    end = text.index("## Open questions")
-    return set(REQ_ID.findall(text[start:end]))
-
-
-REQUIREMENTS_IDS = requirement_ids()
-COVERAGE = covered_ids()
-GAPS = stated_gap_ids()
+CASES = traceability.test_cases()
+REQUIREMENTS_IDS = set(traceability.requirement_ids())
+COVERAGE = {
+    requirement: {case.node_id for case in CASES if requirement in case.covers}
+    for requirement in traceability.claimed_requirements(CASES)
+}
+GAPS = set(traceability.stated_gaps())
 
 
 def test_the_requirements_document_was_read():
