@@ -22,6 +22,7 @@ from tools import (
     results,
     risk,
     runs,
+    smoke,
     traceability,
 )
 
@@ -796,3 +797,18 @@ def test_both_pages_count_requirement_status_the_same_way():
     assert counts["DECLARED GAP"] == 1
     assert counts["NOT COVERED"] == 1
     assert sum(counts.values()) == len(rows_in)
+
+
+def test_a_non_json_error_body_is_reported_rather_than_raised():
+    """A plain text 500 from a served instance is readable in the run log.
+
+    Layer: unit
+    Covers: none
+    Why this layer: the decoder is a pure function, and the run log of a blocked
+    deployment is something people read. A traceback about JSON in place of the
+    failing check hides which call failed.
+    """
+    assert smoke.decode(b"") == {}
+    assert smoke.decode(b'{"code": "x"}') == {"code": "x"}
+    plain = smoke.decode(b"Internal Server Error")
+    assert "Internal Server Error" in plain["unparsed_body"]
