@@ -83,20 +83,19 @@ footer{border-top:1px solid var(--line);margin-top:56px;padding-top:20px;
 </div></header>
 <main class="wrap">
 
-<h1>API testing: every case, and what the service returned</h1>
-<p class="lede">35 test cases against a REST service, each one naming
-the request it sends and the response it expects. Every status code below was
-returned by the running service during the run that generated this page. Nothing
-here is a screenshot or a description of a test.</p>
+<h1>API testing: what each case sends, and what came back</h1>
+<p class="lede">A walkthrough of 12 cases against a REST service, in the
+order you would meet them. Each row says what it sent, what status it expected,
+and what the service actually returned on the run that generated this page.</p>
 
 <div class="grid g3">
   <div class="card">
-    <div class="label">Cases</div>
+    <div class="label">Cases in the suite</div>
     <div class="kpi">35</div>
-    <p class="dim">across the API and contract layers</p>
+    <p class="dim">12 of them are walked through below</p>
   </div>
   <div class="card">
-    <div class="label">Passing</div>
+    <div class="label">Passing on this run</div>
     <div class="kpi">35 of 35</div>
     <p class="dim"><span class="pill ok">pass</span></p>
   </div>
@@ -107,323 +106,29 @@ here is a screenshot or a description of a test.</p>
   </div>
 </div>
 
-<h2>The responses this suite proves</h2>
-<p>A suite that only shows the happy path proves the service works when nothing
-goes wrong, which is the easy half. These are the ways a request can be refused,
-each with cases behind it.</p>
-<div class="grid g3"><div class="card">
-  <div class="label">201 responses</div>
-  <div class="kpi">3</div>
-  <p class="dim">Created. The change was recorded and the service says where it is.</p>
-</div><div class="card">
-  <div class="label">200 responses</div>
-  <div class="kpi">17</div>
-  <p class="dim">Accepted. The gate ran the rules, or the lifecycle move was legal.</p>
-</div><div class="card">
-  <div class="label">400 responses</div>
-  <div class="kpi">2</div>
-  <p class="dim">Refused. The request was read and understood, and a rule said no.</p>
-</div><div class="card">
-  <div class="label">404 responses</div>
-  <div class="kpi">4</div>
-  <p class="dim">No such change. The identifier does not name anything.</p>
-</div><div class="card">
-  <div class="label">409 responses</div>
-  <div class="kpi">4</div>
-  <p class="dim">Conflict. The request is legal in general and not from this state.</p>
-</div><div class="card">
-  <div class="label">422 responses</div>
-  <div class="kpi">4</div>
-  <p class="dim">Unreadable. The request could not be parsed into a change at all.</p>
-</div><div class="card">
-  <div class="label">500 responses</div>
-  <div class="kpi">1</div>
-  <p class="dim">The service failed. It says so rather than reporting success.</p>
-</div></div>
+<div class="note"><strong>A case that expects a refusal and gets one is a pass.</strong>
+Half of the cases below check that the service says no when it should: a change
+that does not exist, a rule that is not satisfied, a payload that cannot be read,
+a database that is gone. Each row states the check in full, so
+<code>expected 404, got 404, PASS</code> reads as what it is.</div>
 
-
-<div class="note"><strong>400 and 422 are not the same refusal, and this
-service does not treat them as one.</strong> A 422 means the request could
-not be read: a missing field, a timestamp with no timezone, a state that does not
-exist. A 400 means the request was read and understood, and a rule refused
-it. Collapsing them is common and it costs something real: in any log, metric or
-alert built on status codes, a caller with a bug and a change that is not ready
-become the same event. The reasoning is recorded in
-<a href="https://github.com/keonikaku/release-gate-api/blob/main/docs/decisions/0002-status-codes.md">decision
-0002</a>, and there are 2 cases on one and
-4 on the other.</div>
-
-<h2>The cases</h2>
-<p>Grouped by the status each one expects. <strong>Expected</strong> is declared
-in the test itself. <strong>Returned</strong> is what the service answered on
-this run. The build fails if those two disagree, so the column on the right is a
-result rather than a restatement of the column on the left.</p>
-
-<h3>201: Created. The change was recorded and the service says where it is.</h3>
+<h2>The walkthrough</h2>
 <table>
-<tr><th>Case</th><th>What it verifies</th><th>Request</th><th>Expected</th>
-<th>Returned</th><th>Result</th></tr>
+<tr><th>Case</th><th>What it does</th><th>Request</th><th>Assertion</th>
+<th>Result</th></tr>
 <tr>
-<td class="k mono">API-01</td>
-<td class="k">The check runs in both directions: an extra field is a contract break.<div class='dim'>after 1 setup call</div><details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;id&quot;: &quot;32b331fe-538b-40f4-9043-3dc4c7a9dcbd&quot;,
-  &quot;state&quot;: &quot;draft&quot;,
-  &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
-  &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
-  &quot;submission&quot;: {
-    &quot;title&quot;: &quot;Payments service 4.2 sprint release&quot;,
-    &quot;release_type&quot;: &quot;sprint&quot;,
-    &quot;scrum_team&quot;: &quot;payments&quot;,
-    &quot;submitter&quot;: &quot;a.rivera&quot;,
-    &quot;fix_version&quot;: &quot;2026.07.1&quot;,
-    &quot;implementation_start&quot;: &quot;2026-08-01T22:00:00Z&quot;,
-    &quot;implementation_end&quot;: &quot;2026-08-02T02:00:00Z&quot;,
-    &quot;rollback_plan&quot;: &quot;Redeploy 4.1.3 from the previous tag, verify smoke suite.&quot;,
-    &quot;jira_ticket&quot;: &quot;PAY-1150&quot;,
-    &quot;test_evidence&quot;: [
-      {
-        &quot;environment&quot;: &quot;dev&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9001&quot;
-      },
-      {
-        &quot;environment&quot;: &quot;qa&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9002&quot;
-      },
-      {
-        &quot;environment&quot;: &quot;bat&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9003&quot;
-      }
-    ],
-    &quot;merge_requests&quot;: [
-      {
-        &quot;stage&quot;: &quot;reg_sit&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/101&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-20T09:00:00Z&quot;
-      },
-      {
-        &quot;stage&quot;: &quot;int&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/102&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-22T09:00:00Z&quot;
-      },
-      {
-       </pre></div></details></td>
-<td><code>POST /changes</code></td>
-<td class="mono">201</td>
-<td class="mono">201</td>
-<td><span class="pill ok">passed</span></td>
-</tr><tr>
-<td class="k mono">API-02</td>
-<td class="k">The 201 body validates against the declared ChangeRecord schema.<div class='dim'>after 1 setup call</div><details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;id&quot;: &quot;9c1ad055-2eb6-4485-a81c-a517eba9c590&quot;,
-  &quot;state&quot;: &quot;draft&quot;,
-  &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
-  &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
-  &quot;submission&quot;: {
-    &quot;title&quot;: &quot;Payments service 4.2 sprint release&quot;,
-    &quot;release_type&quot;: &quot;sprint&quot;,
-    &quot;scrum_team&quot;: &quot;payments&quot;,
-    &quot;submitter&quot;: &quot;a.rivera&quot;,
-    &quot;fix_version&quot;: &quot;2026.07.1&quot;,
-    &quot;implementation_start&quot;: &quot;2026-08-01T22:00:00Z&quot;,
-    &quot;implementation_end&quot;: &quot;2026-08-02T02:00:00Z&quot;,
-    &quot;rollback_plan&quot;: &quot;Redeploy 4.1.3 from the previous tag, verify smoke suite.&quot;,
-    &quot;jira_ticket&quot;: &quot;PAY-1150&quot;,
-    &quot;test_evidence&quot;: [
-      {
-        &quot;environment&quot;: &quot;dev&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9001&quot;
-      },
-      {
-        &quot;environment&quot;: &quot;qa&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9002&quot;
-      },
-      {
-        &quot;environment&quot;: &quot;bat&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9003&quot;
-      }
-    ],
-    &quot;merge_requests&quot;: [
-      {
-        &quot;stage&quot;: &quot;reg_sit&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/101&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-20T09:00:00Z&quot;
-      },
-      {
-        &quot;stage&quot;: &quot;int&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/102&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-22T09:00:00Z&quot;
-      },
-      {
-       </pre></div></details></td>
-<td><code>POST /changes</code></td>
-<td class="mono">201</td>
-<td class="mono">201</td>
-<td><span class="pill ok">passed</span></td>
-</tr><tr>
-<td class="k mono">API-20</td>
-<td class="k">Creating a change records it in Draft with the injected timestamp.<details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;id&quot;: &quot;c160abf9-9b49-4954-9938-7d55628de6bc&quot;,
-  &quot;state&quot;: &quot;draft&quot;,
-  &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
-  &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
-  &quot;submission&quot;: {
-    &quot;title&quot;: &quot;Payments service 4.2 sprint release&quot;,
-    &quot;release_type&quot;: &quot;sprint&quot;,
-    &quot;scrum_team&quot;: &quot;payments&quot;,
-    &quot;submitter&quot;: &quot;a.rivera&quot;,
-    &quot;fix_version&quot;: &quot;2026.07.1&quot;,
-    &quot;implementation_start&quot;: &quot;2026-08-01T22:00:00Z&quot;,
-    &quot;implementation_end&quot;: &quot;2026-08-02T02:00:00Z&quot;,
-    &quot;rollback_plan&quot;: &quot;Redeploy 4.1.3 from the previous tag, verify smoke suite.&quot;,
-    &quot;jira_ticket&quot;: &quot;PAY-1150&quot;,
-    &quot;test_evidence&quot;: [
-      {
-        &quot;environment&quot;: &quot;dev&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9001&quot;
-      },
-      {
-        &quot;environment&quot;: &quot;qa&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9002&quot;
-      },
-      {
-        &quot;environment&quot;: &quot;bat&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9003&quot;
-      }
-    ],
-    &quot;merge_requests&quot;: [
-      {
-        &quot;stage&quot;: &quot;reg_sit&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/101&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-20T09:00:00Z&quot;
-      },
-      {
-        &quot;stage&quot;: &quot;int&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/102&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-22T09:00:00Z&quot;
-      },
-      {
-       </pre></div></details></td>
-<td><code>POST /changes</code></td>
-<td class="mono">201</td>
-<td class="mono">201</td>
-<td><span class="pill ok">passed</span></td>
-</tr>
-</table>
-<h3>200: Accepted. The gate ran the rules, or the lifecycle move was legal.</h3>
-<table>
-<tr><th>Case</th><th>What it verifies</th><th>Request</th><th>Expected</th>
-<th>Returned</th><th>Result</th></tr>
-<tr>
-<td class="k mono">API-03</td>
-<td class="k">Every 4xx the spec lists has a body schema attached.<details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;openapi&quot;: &quot;3.1.0&quot;,
-  &quot;info&quot;: {
-    &quot;title&quot;: &quot;Release Gate API&quot;,
-    &quot;summary&quot;: &quot;Decides whether a proposed change may proceed to production.&quot;,
-    &quot;description&quot;: &quot;The gate validates a submission against the rules in REQ-1 and enforces the lifecycle in REQ-2. Rejections are machine readable: every violation carries the requirement ID that refused it.&quot;,
-    &quot;version&quot;: &quot;0.1.0&quot;
-  },
-  &quot;paths&quot;: {
-    &quot;/healthz&quot;: {
-      &quot;get&quot;: {
-        &quot;tags&quot;: [
-          &quot;service&quot;
-        ],
-        &quot;summary&quot;: &quot;Healthz&quot;,
-        &quot;description&quot;: &quot;Liveness, and the version this instance is running.&quot;,
-        &quot;operationId&quot;: &quot;healthz_healthz_get&quot;,
-        &quot;responses&quot;: {
-          &quot;200&quot;: {
-            &quot;description&quot;: &quot;Successful Response&quot;,
-            &quot;content&quot;: {
-              &quot;application/json&quot;: {
-                &quot;schema&quot;: {
-                  &quot;$ref&quot;: &quot;#/components/schemas/Health&quot;
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    &quot;/changes&quot;: {
-      &quot;post&quot;: {
-        &quot;tags&quot;: [
-          &quot;changes&quot;
-        ],
-        &quot;summary&quot;: &quot;Create Change&quot;,
-        &quot;description&quot;: &quot;Record a change in Draft. No rules run here.\n\nDrafting is not submitting. The gate evaluates REQ-</pre></div></details></td>
-<td><code>GET /openapi.json</code></td>
-<td class="mono">200</td>
-<td class="mono">200</td>
-<td><span class="pill ok">passed</span></td>
-</tr><tr>
-<td class="k mono">API-04</td>
-<td class="k">Every documented operation carries a summary, taken from its docstring.<details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;openapi&quot;: &quot;3.1.0&quot;,
-  &quot;info&quot;: {
-    &quot;title&quot;: &quot;Release Gate API&quot;,
-    &quot;summary&quot;: &quot;Decides whether a proposed change may proceed to production.&quot;,
-    &quot;description&quot;: &quot;The gate validates a submission against the rules in REQ-1 and enforces the lifecycle in REQ-2. Rejections are machine readable: every violation carries the requirement ID that refused it.&quot;,
-    &quot;version&quot;: &quot;0.1.0&quot;
-  },
-  &quot;paths&quot;: {
-    &quot;/healthz&quot;: {
-      &quot;get&quot;: {
-        &quot;tags&quot;: [
-          &quot;service&quot;
-        ],
-        &quot;summary&quot;: &quot;Healthz&quot;,
-        &quot;description&quot;: &quot;Liveness, and the version this instance is running.&quot;,
-        &quot;operationId&quot;: &quot;healthz_healthz_get&quot;,
-        &quot;responses&quot;: {
-          &quot;200&quot;: {
-            &quot;description&quot;: &quot;Successful Response&quot;,
-            &quot;content&quot;: {
-              &quot;application/json&quot;: {
-                &quot;schema&quot;: {
-                  &quot;$ref&quot;: &quot;#/components/schemas/Health&quot;
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    &quot;/changes&quot;: {
-      &quot;post&quot;: {
-        &quot;tags&quot;: [
-          &quot;changes&quot;
-        ],
-        &quot;summary&quot;: &quot;Create Change&quot;,
-        &quot;description&quot;: &quot;Record a change in Draft. No rules run here.\n\nDrafting is not submitting. The gate evaluates REQ-</pre></div></details></td>
-<td><code>GET /openapi.json</code></td>
-<td class="mono">200</td>
-<td class="mono">200</td>
-<td><span class="pill ok">passed</span></td>
-</tr><tr>
-<td class="k mono">API-05</td>
-<td class="k">/healthz returns what the spec says it returns.<div class='dim'>after 1 setup call</div><details class='exchange'><summary>response body</summary><div class='body'><pre>{
+<td class="k mono">API-29</td>
+<td class="k">Health check on a running service.<details class='exchange'><summary>response</summary><div class='body'><pre>{
   &quot;status&quot;: &quot;ok&quot;,
   &quot;version&quot;: &quot;0.1.0&quot;
 }</pre></div></details></td>
 <td><code>GET /healthz</code></td>
-<td class="mono">200</td>
-<td class="mono">200</td>
+<td class="mono">expected 200, got 200</td>
 <td><span class="pill ok">passed</span></td>
 </tr><tr>
-<td class="k mono">API-08</td>
-<td class="k">The 200 body from a read validates against the declared schema.<div class='dim'>after 2 setup calls</div><details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;id&quot;: &quot;d12200d7-8d15-46f2-843e-d7d29d196bda&quot;,
+<td class="k mono">API-20</td>
+<td class="k">Create a change request with a complete submission.<details class='exchange'><summary>response</summary><div class='body'><pre>{
+  &quot;id&quot;: &quot;c7ed83ec-39b7-4933-9a9c-1e23f57fb470&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -454,27 +159,80 @@ result rather than a restatement of the column on the left.</p>
         &quot;reference&quot;: &quot;run-9003&quot;
       }
     ],
-    &quot;merge_requests&quot;: [
-      {
-        &quot;stage&quot;: &quot;reg_sit&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/101&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-20T09:00:00Z&quot;
-      },
-      {
-        &quot;stage&quot;: &quot;int&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/102&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-22T09:00:00Z&quot;
-      },
-      {
-       </pre></div></details></td>
-<td><code>GET /changes/{id}</code></td>
-<td class="mono">200</td>
-<td class="mono">200</td>
+    &quot;me
+... 1278 more characters</pre></div></details></td>
+<td><code>POST /changes</code></td>
+<td class="mono">expected 201, got 201</td>
 <td><span class="pill ok">passed</span></td>
 </tr><tr>
-<td class="k mono">API-11</td>
-<td class="k">The 200 body from a successful submission validates.<div class='dim'>after 2 setup calls</div><details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;id&quot;: &quot;2a599772-c057-4a26-86ba-0841fb29c293&quot;,
+<td class="k mono">API-15</td>
+<td class="k">Read back a change that was just created.<details class='exchange'><summary>response</summary><div class='body'><pre>{
+  &quot;id&quot;: &quot;30e4fbed-3c78-4a8c-a78e-a40ab8f435af&quot;,
+  &quot;state&quot;: &quot;draft&quot;,
+  &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
+  &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
+  &quot;submission&quot;: {
+    &quot;title&quot;: &quot;Payments service 4.2 sprint release&quot;,
+    &quot;release_type&quot;: &quot;sprint&quot;,
+    &quot;scrum_team&quot;: &quot;payments&quot;,
+    &quot;submitter&quot;: &quot;a.rivera&quot;,
+    &quot;fix_version&quot;: &quot;2026.07.1&quot;,
+    &quot;implementation_start&quot;: &quot;2026-08-01T22:00:00Z&quot;,
+    &quot;implementation_end&quot;: &quot;2026-08-02T02:00:00Z&quot;,
+    &quot;rollback_plan&quot;: &quot;Redeploy 4.1.3 from the previous tag, verify smoke suite.&quot;,
+    &quot;jira_ticket&quot;: &quot;PAY-1150&quot;,
+    &quot;test_evidence&quot;: [
+      {
+        &quot;environment&quot;: &quot;dev&quot;,
+        &quot;passed&quot;: true,
+        &quot;reference&quot;: &quot;run-9001&quot;
+      },
+      {
+        &quot;environment&quot;: &quot;qa&quot;,
+        &quot;passed&quot;: true,
+        &quot;reference&quot;: &quot;run-9002&quot;
+      },
+      {
+        &quot;environment&quot;: &quot;bat&quot;,
+        &quot;passed&quot;: true,
+        &quot;reference&quot;: &quot;run-9003&quot;
+      }
+    ],
+    &quot;me
+... 1278 more characters</pre></div></details></td>
+<td><code>GET /changes/{id}</code></td>
+<td class="mono">expected 200, got 200</td>
+<td><span class="pill ok">passed</span></td>
+</tr><tr>
+<td class="k mono">API-25</td>
+<td class="k">Read a change that does not exist.<details class='exchange'><summary>response</summary><div class='body'><pre>{
+  &quot;detail&quot;: {
+    &quot;code&quot;: &quot;not_found&quot;
+  }
+}</pre></div></details></td>
+<td><code>GET /changes/{id}</code></td>
+<td class="mono">expected 404, got 404</td>
+<td><span class="pill ok">passed</span></td>
+</tr><tr>
+<td class="k mono">API-18</td>
+<td class="k">Submit a change with no BAT test evidence.<details class='exchange'><summary>response</summary><div class='body'><pre>{
+  &quot;detail&quot;: {
+    &quot;code&quot;: &quot;submission_rejected&quot;,
+    &quot;violations&quot;: [
+      {
+        &quot;rule&quot;: &quot;REQ-1.2&quot;,
+        &quot;message&quot;: &quot;No passing test evidence for: bat.&quot;
+      }
+    ]
+  }
+}</pre></div></details></td>
+<td><code>POST /changes/{id}/submit</code></td>
+<td class="mono">expected 400, got 400</td>
+<td><span class="pill ok">passed</span></td>
+</tr><tr>
+<td class="k mono">API-23</td>
+<td class="k">Submit a change that meets every gate rule.<details class='exchange'><summary>response</summary><div class='body'><pre>{
+  &quot;id&quot;: &quot;a5c059e1-449f-4580-8045-ae7c0c4ad0cd&quot;,
   &quot;state&quot;: &quot;submitted&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -505,267 +263,15 @@ result rather than a restatement of the column on the left.</p>
         &quot;reference&quot;: &quot;run-9003&quot;
       }
     ],
-    &quot;merge_requests&quot;: [
-      {
-        &quot;stage&quot;: &quot;reg_sit&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/101&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-20T09:00:00Z&quot;
-      },
-      {
-        &quot;stage&quot;: &quot;int&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/102&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-22T09:00:00Z&quot;
-      },
-      {
-   </pre></div></details></td>
-<td><code>POST /changes/{id}/submit</code></td>
-<td class="mono">200</td>
-<td class="mono">200</td>
-<td><span class="pill ok">passed</span></td>
-</tr><tr>
-<td class="k mono">API-12</td>
-<td class="k">The version in the spec is the version the service reports at /healthz.<details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;openapi&quot;: &quot;3.1.0&quot;,
-  &quot;info&quot;: {
-    &quot;title&quot;: &quot;Release Gate API&quot;,
-    &quot;summary&quot;: &quot;Decides whether a proposed change may proceed to production.&quot;,
-    &quot;description&quot;: &quot;The gate validates a submission against the rules in REQ-1 and enforces the lifecycle in REQ-2. Rejections are machine readable: every violation carries the requirement ID that refused it.&quot;,
-    &quot;version&quot;: &quot;0.1.0&quot;
-  },
-  &quot;paths&quot;: {
-    &quot;/healthz&quot;: {
-      &quot;get&quot;: {
-        &quot;tags&quot;: [
-          &quot;service&quot;
-        ],
-        &quot;summary&quot;: &quot;Healthz&quot;,
-        &quot;description&quot;: &quot;Liveness, and the version this instance is running.&quot;,
-        &quot;operationId&quot;: &quot;healthz_healthz_get&quot;,
-        &quot;responses&quot;: {
-          &quot;200&quot;: {
-            &quot;description&quot;: &quot;Successful Response&quot;,
-            &quot;content&quot;: {
-              &quot;application/json&quot;: {
-                &quot;schema&quot;: {
-                  &quot;$ref&quot;: &quot;#/components/schemas/Health&quot;
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    &quot;/changes&quot;: {
-      &quot;post&quot;: {
-        &quot;tags&quot;: [
-          &quot;changes&quot;
-        ],
-        &quot;summary&quot;: &quot;Create Change&quot;,
-        &quot;description&quot;: &quot;Record a change in Draft. No rules run here.\n\nDrafting is not submitting. The gate evaluates REQ-</pre></div></details></td>
-<td><code>GET /openapi.json</code></td>
-<td class="mono">200</td>
-<td class="mono">200</td>
-<td><span class="pill ok">passed</span></td>
-</tr><tr>
-<td class="k mono">API-13</td>
-<td class="k">The spec is served by the application, generated from the code.<details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;openapi&quot;: &quot;3.1.0&quot;,
-  &quot;info&quot;: {
-    &quot;title&quot;: &quot;Release Gate API&quot;,
-    &quot;summary&quot;: &quot;Decides whether a proposed change may proceed to production.&quot;,
-    &quot;description&quot;: &quot;The gate validates a submission against the rules in REQ-1 and enforces the lifecycle in REQ-2. Rejections are machine readable: every violation carries the requirement ID that refused it.&quot;,
-    &quot;version&quot;: &quot;0.1.0&quot;
-  },
-  &quot;paths&quot;: {
-    &quot;/healthz&quot;: {
-      &quot;get&quot;: {
-        &quot;tags&quot;: [
-          &quot;service&quot;
-        ],
-        &quot;summary&quot;: &quot;Healthz&quot;,
-        &quot;description&quot;: &quot;Liveness, and the version this instance is running.&quot;,
-        &quot;operationId&quot;: &quot;healthz_healthz_get&quot;,
-        &quot;responses&quot;: {
-          &quot;200&quot;: {
-            &quot;description&quot;: &quot;Successful Response&quot;,
-            &quot;content&quot;: {
-              &quot;application/json&quot;: {
-                &quot;schema&quot;: {
-                  &quot;$ref&quot;: &quot;#/components/schemas/Health&quot;
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    &quot;/changes&quot;: {
-      &quot;post&quot;: {
-        &quot;tags&quot;: [
-          &quot;changes&quot;
-        ],
-        &quot;summary&quot;: &quot;Create Change&quot;,
-        &quot;description&quot;: &quot;Record a change in Draft. No rules run here.\n\nDrafting is not submitting. The gate evaluates REQ-</pre></div></details></td>
-<td><code>GET /openapi.json</code></td>
-<td class="mono">200</td>
-<td class="mono">200</td>
-<td><span class="pill ok">passed</span></td>
-</tr><tr>
-<td class="k mono">API-14</td>
-<td class="k">A scheduled change can still be cancelled.<div class='dim'>after 5 setup calls</div><details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;id&quot;: &quot;d7f5cf77-15ef-4c2b-96ba-4adc338a20e5&quot;,
-  &quot;state&quot;: &quot;cancelled&quot;,
-  &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
-  &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
-  &quot;submission&quot;: {
-    &quot;title&quot;: &quot;Payments service 4.2 sprint release&quot;,
-    &quot;release_type&quot;: &quot;sprint&quot;,
-    &quot;scrum_team&quot;: &quot;payments&quot;,
-    &quot;submitter&quot;: &quot;a.rivera&quot;,
-    &quot;fix_version&quot;: &quot;2026.07.1&quot;,
-    &quot;implementation_start&quot;: &quot;2026-08-01T22:00:00Z&quot;,
-    &quot;implementation_end&quot;: &quot;2026-08-02T02:00:00Z&quot;,
-    &quot;rollback_plan&quot;: &quot;Redeploy 4.1.3 from the previous tag, verify smoke suite.&quot;,
-    &quot;jira_ticket&quot;: &quot;PAY-1150&quot;,
-    &quot;test_evidence&quot;: [
-      {
-        &quot;environment&quot;: &quot;dev&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9001&quot;
-      },
-      {
-        &quot;environment&quot;: &quot;qa&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9002&quot;
-      },
-      {
-        &quot;environment&quot;: &quot;bat&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9003&quot;
-      }
-    ],
-    &quot;merge_requests&quot;: [
-      {
-        &quot;stage&quot;: &quot;reg_sit&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/101&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-20T09:00:00Z&quot;
-      },
-      {
-        &quot;stage&quot;: &quot;int&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/102&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-22T09:00:00Z&quot;
-      },
-      {
-   </pre></div></details></td>
+   
+... 1282 more characters</pre></div></details></td>
 <td><code>GET /changes/{id}</code></td>
-<td class="mono">200</td>
-<td class="mono">200</td>
-<td><span class="pill ok">passed</span></td>
-</tr><tr>
-<td class="k mono">API-15</td>
-<td class="k">What was written is what is read.<div class='dim'>after 1 setup call</div><details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;id&quot;: &quot;b2b4fd67-01a6-4943-b863-e10f9cb4055b&quot;,
-  &quot;state&quot;: &quot;draft&quot;,
-  &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
-  &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
-  &quot;submission&quot;: {
-    &quot;title&quot;: &quot;Payments service 4.2 sprint release&quot;,
-    &quot;release_type&quot;: &quot;sprint&quot;,
-    &quot;scrum_team&quot;: &quot;payments&quot;,
-    &quot;submitter&quot;: &quot;a.rivera&quot;,
-    &quot;fix_version&quot;: &quot;2026.07.1&quot;,
-    &quot;implementation_start&quot;: &quot;2026-08-01T22:00:00Z&quot;,
-    &quot;implementation_end&quot;: &quot;2026-08-02T02:00:00Z&quot;,
-    &quot;rollback_plan&quot;: &quot;Redeploy 4.1.3 from the previous tag, verify smoke suite.&quot;,
-    &quot;jira_ticket&quot;: &quot;PAY-1150&quot;,
-    &quot;test_evidence&quot;: [
-      {
-        &quot;environment&quot;: &quot;dev&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9001&quot;
-      },
-      {
-        &quot;environment&quot;: &quot;qa&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9002&quot;
-      },
-      {
-        &quot;environment&quot;: &quot;bat&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9003&quot;
-      }
-    ],
-    &quot;merge_requests&quot;: [
-      {
-        &quot;stage&quot;: &quot;reg_sit&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/101&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-20T09:00:00Z&quot;
-      },
-      {
-        &quot;stage&quot;: &quot;int&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/102&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-22T09:00:00Z&quot;
-      },
-      {
-       </pre></div></details></td>
-<td><code>GET /changes/{id}</code></td>
-<td class="mono">200</td>
-<td class="mono">200</td>
-<td><span class="pill ok">passed</span></td>
-</tr><tr>
-<td class="k mono">API-21</td>
-<td class="k">A refusal is a 400 listing every violation, and the change stays in Draft.<div class='dim'>after 2 setup calls</div><details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;id&quot;: &quot;73ddc936-98e0-44ce-a6f1-122d36cb1c29&quot;,
-  &quot;state&quot;: &quot;draft&quot;,
-  &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
-  &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
-  &quot;submission&quot;: {
-    &quot;title&quot;: &quot;Payments service 4.2 sprint release&quot;,
-    &quot;release_type&quot;: &quot;sprint&quot;,
-    &quot;scrum_team&quot;: &quot;payments&quot;,
-    &quot;submitter&quot;: &quot;a.rivera&quot;,
-    &quot;fix_version&quot;: &quot;2026.07.1&quot;,
-    &quot;implementation_start&quot;: &quot;2026-08-01T22:00:00Z&quot;,
-    &quot;implementation_end&quot;: &quot;2026-08-02T02:00:00Z&quot;,
-    &quot;rollback_plan&quot;: null,
-    &quot;jira_ticket&quot;: null,
-    &quot;test_evidence&quot;: [],
-    &quot;merge_requests&quot;: [
-      {
-        &quot;stage&quot;: &quot;reg_sit&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/101&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-20T09:00:00Z&quot;
-      },
-      {
-        &quot;stage&quot;: &quot;int&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/102&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-22T09:00:00Z&quot;
-      },
-      {
-        &quot;stage&quot;: &quot;bat&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/103&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-24T09:00:00Z&quot;
-      }
-    ],
-    &quot;on_call&quot;: [
-      {
-        &quot;role&quot;: &quot;devops&quot;,
-        &quot;name&quot;: &quot;j.okafor&quot;,
-        &quot;window_start&quot;: &quot;2026-08-01T22:00:00Z&quot;,
-        &quot;window_end&quot;: &quot;2026-08-02T02:00:00Z&quot;
-      },
-      {
-        &quot;role&quot;: &quot;prod_support&quot;,
-        &quot;name&quot;: &quot;j.okafor&quot;,
- </pre></div></details></td>
-<td><code>GET /changes/{id}</code></td>
-<td class="mono">200</td>
-<td class="mono">200</td>
+<td class="mono">expected 200, got 200</td>
 <td><span class="pill ok">passed</span></td>
 </tr><tr>
 <td class="k mono">API-22</td>
-<td class="k">The SPA row of the on call matrix, exercised through the API.<div class='dim'>after 1 setup call</div><details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;id&quot;: &quot;92da17c0-9f7d-43f2-9812-b4fd490eaf49&quot;,
+<td class="k">Submit a single page app release with no Prod Support on call.<details class='exchange'><summary>response</summary><div class='body'><pre>{
+  &quot;id&quot;: &quot;662d8748-7e10-4075-b6f0-eb89d596f225&quot;,
   &quot;state&quot;: &quot;submitted&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -796,428 +302,14 @@ result rather than a restatement of the column on the left.</p>
         &quot;reference&quot;: &quot;run-9003&quot;
       }
     ],
-    &quot;merge_requests&quot;: [
-      {
-        &quot;stage&quot;: &quot;reg_sit&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/101&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-20T09:00:00Z&quot;
-      },
-      {
-        &quot;stage&quot;: &quot;int&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/102&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-22T09:00:00Z&quot;
-      },
-      {
-      </pre></div></details></td>
+    &quot;m
+... 782 more characters</pre></div></details></td>
 <td><code>POST /changes/{id}/submit</code></td>
-<td class="mono">200</td>
-<td class="mono">200</td>
-<td><span class="pill ok">passed</span></td>
-</tr><tr>
-<td class="k mono">API-23</td>
-<td class="k">A submission that passes all seven rules moves to Submitted and stays there.<div class='dim'>after 2 setup calls</div><details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;id&quot;: &quot;2ccdc715-b081-4921-910e-ef6bf12cb4f0&quot;,
-  &quot;state&quot;: &quot;submitted&quot;,
-  &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
-  &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
-  &quot;submission&quot;: {
-    &quot;title&quot;: &quot;Payments service 4.2 sprint release&quot;,
-    &quot;release_type&quot;: &quot;sprint&quot;,
-    &quot;scrum_team&quot;: &quot;payments&quot;,
-    &quot;submitter&quot;: &quot;a.rivera&quot;,
-    &quot;fix_version&quot;: &quot;2026.07.1&quot;,
-    &quot;implementation_start&quot;: &quot;2026-08-01T22:00:00Z&quot;,
-    &quot;implementation_end&quot;: &quot;2026-08-02T02:00:00Z&quot;,
-    &quot;rollback_plan&quot;: &quot;Redeploy 4.1.3 from the previous tag, verify smoke suite.&quot;,
-    &quot;jira_ticket&quot;: &quot;PAY-1150&quot;,
-    &quot;test_evidence&quot;: [
-      {
-        &quot;environment&quot;: &quot;dev&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9001&quot;
-      },
-      {
-        &quot;environment&quot;: &quot;qa&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9002&quot;
-      },
-      {
-        &quot;environment&quot;: &quot;bat&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9003&quot;
-      }
-    ],
-    &quot;merge_requests&quot;: [
-      {
-        &quot;stage&quot;: &quot;reg_sit&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/101&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-20T09:00:00Z&quot;
-      },
-      {
-        &quot;stage&quot;: &quot;int&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/102&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-22T09:00:00Z&quot;
-      },
-      {
-   </pre></div></details></td>
-<td><code>GET /changes/{id}</code></td>
-<td class="mono">200</td>
-<td class="mono">200</td>
-<td><span class="pill ok">passed</span></td>
-</tr><tr>
-<td class="k mono">API-28</td>
-<td class="k">REQ-2.3 through HTTP: Implementing to Closed is refused, Implementing to Rolled Back is allowed.<div class='dim'>after 6 setup calls</div><details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;id&quot;: &quot;70d92118-b135-4eb3-aa68-56fe40ae2a54&quot;,
-  &quot;state&quot;: &quot;rolled_back&quot;,
-  &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
-  &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
-  &quot;submission&quot;: {
-    &quot;title&quot;: &quot;Payments service 4.2 sprint release&quot;,
-    &quot;release_type&quot;: &quot;sprint&quot;,
-    &quot;scrum_team&quot;: &quot;payments&quot;,
-    &quot;submitter&quot;: &quot;a.rivera&quot;,
-    &quot;fix_version&quot;: &quot;2026.07.1&quot;,
-    &quot;implementation_start&quot;: &quot;2026-08-01T22:00:00Z&quot;,
-    &quot;implementation_end&quot;: &quot;2026-08-02T02:00:00Z&quot;,
-    &quot;rollback_plan&quot;: &quot;Redeploy 4.1.3 from the previous tag, verify smoke suite.&quot;,
-    &quot;jira_ticket&quot;: &quot;PAY-1150&quot;,
-    &quot;test_evidence&quot;: [
-      {
-        &quot;environment&quot;: &quot;dev&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9001&quot;
-      },
-      {
-        &quot;environment&quot;: &quot;qa&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9002&quot;
-      },
-      {
-        &quot;environment&quot;: &quot;bat&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9003&quot;
-      }
-    ],
-    &quot;merge_requests&quot;: [
-      {
-        &quot;stage&quot;: &quot;reg_sit&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/101&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-20T09:00:00Z&quot;
-      },
-      {
-        &quot;stage&quot;: &quot;int&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/102&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-22T09:00:00Z&quot;
-      },
-      {
- </pre></div></details></td>
-<td><code>POST /changes/{id}/transition</code></td>
-<td class="mono">200</td>
-<td class="mono">200</td>
-<td><span class="pill ok">passed</span></td>
-</tr><tr>
-<td class="k mono">API-29</td>
-<td class="k">The service answers, and names the version it is running.<details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;status&quot;: &quot;ok&quot;,
-  &quot;version&quot;: &quot;0.1.0&quot;
-}</pre></div></details></td>
-<td><code>GET /healthz</code></td>
-<td class="mono">200</td>
-<td class="mono">200</td>
-<td><span class="pill ok">passed</span></td>
-</tr><tr>
-<td class="k mono">API-31</td>
-<td class="k">Draft to Closed through every legal state, one request at a time.<div class='dim'>after 6 setup calls</div><details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;id&quot;: &quot;a4c5846a-ffba-43b1-9892-9ff9f3cb8c37&quot;,
-  &quot;state&quot;: &quot;closed&quot;,
-  &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
-  &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
-  &quot;submission&quot;: {
-    &quot;title&quot;: &quot;Payments service 4.2 sprint release&quot;,
-    &quot;release_type&quot;: &quot;sprint&quot;,
-    &quot;scrum_team&quot;: &quot;payments&quot;,
-    &quot;submitter&quot;: &quot;a.rivera&quot;,
-    &quot;fix_version&quot;: &quot;2026.07.1&quot;,
-    &quot;implementation_start&quot;: &quot;2026-08-01T22:00:00Z&quot;,
-    &quot;implementation_end&quot;: &quot;2026-08-02T02:00:00Z&quot;,
-    &quot;rollback_plan&quot;: &quot;Redeploy 4.1.3 from the previous tag, verify smoke suite.&quot;,
-    &quot;jira_ticket&quot;: &quot;PAY-1150&quot;,
-    &quot;test_evidence&quot;: [
-      {
-        &quot;environment&quot;: &quot;dev&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9001&quot;
-      },
-      {
-        &quot;environment&quot;: &quot;qa&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9002&quot;
-      },
-      {
-        &quot;environment&quot;: &quot;bat&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9003&quot;
-      }
-    ],
-    &quot;merge_requests&quot;: [
-      {
-        &quot;stage&quot;: &quot;reg_sit&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/101&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-20T09:00:00Z&quot;
-      },
-      {
-        &quot;stage&quot;: &quot;int&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/102&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-22T09:00:00Z&quot;
-      },
-      {
-      </pre></div></details></td>
-<td><code>POST /changes/{id}/transition</code></td>
-<td class="mono">200</td>
-<td class="mono">200</td>
-<td><span class="pill ok">passed</span></td>
-</tr><tr>
-<td class="k mono">API-33</td>
-<td class="k">Two changes created in the same instance advance independently.<div class='dim'>after 4 setup calls</div><details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;id&quot;: &quot;241d9e83-c701-430f-9b48-86ec32c4f0d9&quot;,
-  &quot;state&quot;: &quot;draft&quot;,
-  &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
-  &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
-  &quot;submission&quot;: {
-    &quot;title&quot;: &quot;Payments service 4.2 sprint release&quot;,
-    &quot;release_type&quot;: &quot;sprint&quot;,
-    &quot;scrum_team&quot;: &quot;payments&quot;,
-    &quot;submitter&quot;: &quot;a.rivera&quot;,
-    &quot;fix_version&quot;: &quot;2026.07.1&quot;,
-    &quot;implementation_start&quot;: &quot;2026-08-01T22:00:00Z&quot;,
-    &quot;implementation_end&quot;: &quot;2026-08-02T02:00:00Z&quot;,
-    &quot;rollback_plan&quot;: &quot;Redeploy 4.1.3 from the previous tag, verify smoke suite.&quot;,
-    &quot;jira_ticket&quot;: &quot;PAY-1150&quot;,
-    &quot;test_evidence&quot;: [
-      {
-        &quot;environment&quot;: &quot;dev&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9001&quot;
-      },
-      {
-        &quot;environment&quot;: &quot;qa&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9002&quot;
-      },
-      {
-        &quot;environment&quot;: &quot;bat&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9003&quot;
-      }
-    ],
-    &quot;merge_requests&quot;: [
-      {
-        &quot;stage&quot;: &quot;reg_sit&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/101&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-20T09:00:00Z&quot;
-      },
-      {
-        &quot;stage&quot;: &quot;int&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/102&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-22T09:00:00Z&quot;
-      },
-      {
-       </pre></div></details></td>
-<td><code>GET /changes/{id}</code></td>
-<td class="mono">200</td>
-<td class="mono">200</td>
-<td><span class="pill ok">passed</span></td>
-</tr><tr>
-<td class="k mono">API-34</td>
-<td class="k">Moving a draft straight to Submitted is refused, so REQ-1 cannot be skipped.<div class='dim'>after 2 setup calls</div><details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;id&quot;: &quot;c39d8b9f-929a-4b8a-ba30-fd858fef367a&quot;,
-  &quot;state&quot;: &quot;draft&quot;,
-  &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
-  &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
-  &quot;submission&quot;: {
-    &quot;title&quot;: &quot;Payments service 4.2 sprint release&quot;,
-    &quot;release_type&quot;: &quot;sprint&quot;,
-    &quot;scrum_team&quot;: &quot;payments&quot;,
-    &quot;submitter&quot;: &quot;a.rivera&quot;,
-    &quot;fix_version&quot;: &quot;2026.07.1&quot;,
-    &quot;implementation_start&quot;: &quot;2026-08-01T22:00:00Z&quot;,
-    &quot;implementation_end&quot;: &quot;2026-08-02T02:00:00Z&quot;,
-    &quot;rollback_plan&quot;: null,
-    &quot;jira_ticket&quot;: &quot;PAY-1150&quot;,
-    &quot;test_evidence&quot;: [
-      {
-        &quot;environment&quot;: &quot;dev&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9001&quot;
-      },
-      {
-        &quot;environment&quot;: &quot;qa&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9002&quot;
-      },
-      {
-        &quot;environment&quot;: &quot;bat&quot;,
-        &quot;passed&quot;: true,
-        &quot;reference&quot;: &quot;run-9003&quot;
-      }
-    ],
-    &quot;merge_requests&quot;: [
-      {
-        &quot;stage&quot;: &quot;reg_sit&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/101&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-20T09:00:00Z&quot;
-      },
-      {
-        &quot;stage&quot;: &quot;int&quot;,
-        &quot;url&quot;: &quot;https://forge.example/mr/102&quot;,
-        &quot;merged_at&quot;: &quot;2026-07-22T09:00:00Z&quot;
-      },
-      {
-        &quot;stage&quot;: &quot;bat&quot;,
-        &quot;url&quot;: &quot;https://forge.example/</pre></div></details></td>
-<td><code>GET /changes/{id}</code></td>
-<td class="mono">200</td>
-<td class="mono">200</td>
-<td><span class="pill ok">passed</span></td>
-</tr>
-</table>
-<h3>400: Refused. The request was read and understood, and a rule said no.</h3>
-<table>
-<tr><th>Case</th><th>What it verifies</th><th>Request</th><th>Expected</th>
-<th>Returned</th><th>Result</th></tr>
-<tr>
-<td class="k mono">API-09</td>
-<td class="k">A refusal is described by the spec, not just returned by the code.<div class='dim'>after 2 setup calls</div><details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;detail&quot;: {
-    &quot;code&quot;: &quot;submission_rejected&quot;,
-    &quot;violations&quot;: [
-      {
-        &quot;rule&quot;: &quot;REQ-1.1&quot;,
-        &quot;message&quot;: &quot;No rollback plan is attached.&quot;
-      },
-      {
-        &quot;rule&quot;: &quot;REQ-1.4&quot;,
-        &quot;message&quot;: &quot;No Jira ticket is linked.&quot;
-      }
-    ]
-  }
-}</pre></div></details></td>
-<td><code>POST /changes/{id}/submit</code></td>
-<td class="mono">400</td>
-<td class="mono">400</td>
-<td><span class="pill ok">passed</span></td>
-</tr><tr>
-<td class="k mono">API-18</td>
-<td class="k">REQ-1.2 through the API. There is no exemption from BAT.<div class='dim'>after 1 setup call</div><details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;detail&quot;: {
-    &quot;code&quot;: &quot;submission_rejected&quot;,
-    &quot;violations&quot;: [
-      {
-        &quot;rule&quot;: &quot;REQ-1.2&quot;,
-        &quot;message&quot;: &quot;No passing test evidence for: bat.&quot;
-      }
-    ]
-  }
-}</pre></div></details></td>
-<td><code>POST /changes/{id}/submit</code></td>
-<td class="mono">400</td>
-<td class="mono">400</td>
-<td><span class="pill ok">passed</span></td>
-</tr>
-</table>
-<h3>404: No such change. The identifier does not name anything.</h3>
-<table>
-<tr><th>Case</th><th>What it verifies</th><th>Request</th><th>Expected</th>
-<th>Returned</th><th>Result</th></tr>
-<tr>
-<td class="k mono">API-07</td>
-<td class="k">A 404 body is documented too.<div class='dim'>after 1 setup call</div><details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;detail&quot;: {
-    &quot;code&quot;: &quot;not_found&quot;
-  }
-}</pre></div></details></td>
-<td><code>GET /changes/does-not-exist</code></td>
-<td class="mono">404</td>
-<td class="mono">404</td>
-<td><span class="pill ok">passed</span></td>
-</tr><tr>
-<td class="k mono">API-25</td>
-<td class="k">Reading a change that does not exist is a 404 with a machine readable code.<details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;detail&quot;: {
-    &quot;code&quot;: &quot;not_found&quot;
-  }
-}</pre></div></details></td>
-<td><code>GET /changes/{id}</code></td>
-<td class="mono">404</td>
-<td class="mono">404</td>
-<td><span class="pill ok">passed</span></td>
-</tr><tr>
-<td class="k mono">API-30</td>
-<td class="k">Submitting a change that does not exist is a 404, not a 400.<details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;detail&quot;: {
-    &quot;code&quot;: &quot;not_found&quot;
-  }
-}</pre></div></details></td>
-<td><code>POST /changes/nope/submit</code></td>
-<td class="mono">404</td>
-<td class="mono">404</td>
-<td><span class="pill ok">passed</span></td>
-</tr><tr>
-<td class="k mono">API-32</td>
-<td class="k">A transition on a change that does not exist is a 404.<details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;detail&quot;: {
-    &quot;code&quot;: &quot;not_found&quot;
-  }
-}</pre></div></details></td>
-<td><code>POST /changes/nope/transition</code></td>
-<td class="mono">404</td>
-<td class="mono">404</td>
-<td><span class="pill ok">passed</span></td>
-</tr>
-</table>
-<h3>409: Conflict. The request is legal in general and not from this state.</h3>
-<table>
-<tr><th>Case</th><th>What it verifies</th><th>Request</th><th>Expected</th>
-<th>Returned</th><th>Result</th></tr>
-<tr>
-<td class="k mono">API-06</td>
-<td class="k">A 409 carries the rule, both states and the legal alternatives, exactly as documented.<div class='dim'>after 2 setup calls</div><details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;detail&quot;: {
-    &quot;code&quot;: &quot;illegal_transition&quot;,
-    &quot;rule&quot;: &quot;REQ-2&quot;,
-    &quot;from_state&quot;: &quot;draft&quot;,
-    &quot;to_state&quot;: &quot;closed&quot;,
-    &quot;allowed&quot;: [
-      &quot;cancelled&quot;,
-      &quot;submitted&quot;
-    ]
-  }
-}</pre></div></details></td>
-<td><code>POST /changes/{id}/transition</code></td>
-<td class="mono">409</td>
-<td class="mono">409</td>
-<td><span class="pill ok">passed</span></td>
-</tr><tr>
-<td class="k mono">API-16</td>
-<td class="k">Cancelling during implementation is a 409 naming REQ-2.1.<div class='dim'>after 5 setup calls</div><details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;detail&quot;: {
-    &quot;code&quot;: &quot;illegal_transition&quot;,
-    &quot;rule&quot;: &quot;REQ-2.1&quot;,
-    &quot;from_state&quot;: &quot;implementing&quot;,
-    &quot;to_state&quot;: &quot;cancelled&quot;,
-    &quot;allowed&quot;: [
-      &quot;rolled_back&quot;,
-      &quot;verified&quot;
-    ]
-  }
-}</pre></div></details></td>
-<td><code>POST /changes/{id}/transition</code></td>
-<td class="mono">409</td>
-<td class="mono">409</td>
+<td class="mono">expected 200, got 200</td>
 <td><span class="pill ok">passed</span></td>
 </tr><tr>
 <td class="k mono">API-17</td>
-<td class="k">Submitting an already submitted change is a 409.<div class='dim'>after 2 setup calls</div><details class='exchange'><summary>response body</summary><div class='body'><pre>{
+<td class="k">Submit the same change twice.<details class='exchange'><summary>response</summary><div class='body'><pre>{
   &quot;detail&quot;: {
     &quot;code&quot;: &quot;illegal_transition&quot;,
     &quot;rule&quot;: &quot;REQ-2&quot;,
@@ -1230,12 +322,11 @@ result rather than a restatement of the column on the left.</p>
   }
 }</pre></div></details></td>
 <td><code>POST /changes/{id}/submit</code></td>
-<td class="mono">409</td>
-<td class="mono">409</td>
+<td class="mono">expected 409, got 409</td>
 <td><span class="pill ok">passed</span></td>
 </tr><tr>
 <td class="k mono">API-24</td>
-<td class="k">REQ-2.2 through HTTP, with the refusing rule in the body.<div class='dim'>after 5 setup calls</div><details class='exchange'><summary>response body</summary><div class='body'><pre>{
+<td class="k">Move a change backwards from Implementing to Approved.<details class='exchange'><summary>response</summary><div class='body'><pre>{
   &quot;detail&quot;: {
     &quot;code&quot;: &quot;illegal_transition&quot;,
     &quot;rule&quot;: &quot;REQ-2.2&quot;,
@@ -1248,94 +339,11 @@ result rather than a restatement of the column on the left.</p>
   }
 }</pre></div></details></td>
 <td><code>POST /changes/{id}/transition</code></td>
-<td class="mono">409</td>
-<td class="mono">409</td>
-<td><span class="pill ok">passed</span></td>
-</tr>
-</table>
-<h3>422: Unreadable. The request could not be parsed into a change at all.</h3>
-<table>
-<tr><th>Case</th><th>What it verifies</th><th>Request</th><th>Expected</th>
-<th>Returned</th><th>Result</th></tr>
-<tr>
-<td class="k mono">API-10</td>
-<td class="k">A malformed payload returns the framework&#x27;s documented 422 shape.<div class='dim'>after 1 setup call</div><details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;detail&quot;: [
-    {
-      &quot;type&quot;: &quot;missing&quot;,
-      &quot;loc&quot;: [
-        &quot;body&quot;,
-        &quot;release_type&quot;
-      ],
-      &quot;msg&quot;: &quot;Field required&quot;,
-      &quot;input&quot;: {
-        &quot;title&quot;: &quot;no other fields&quot;
-      }
-    },
-    {
-      &quot;type&quot;: &quot;missing&quot;,
-      &quot;loc&quot;: [
-        &quot;body&quot;,
-        &quot;scrum_team&quot;
-      ],
-      &quot;msg&quot;: &quot;Field required&quot;,
-      &quot;input&quot;: {
-        &quot;title&quot;: &quot;no other fields&quot;
-      }
-    },
-    {
-      &quot;type&quot;: &quot;missing&quot;,
-      &quot;loc&quot;: [
-        &quot;body&quot;,
-        &quot;submitter&quot;
-      ],
-      &quot;msg&quot;: &quot;Field required&quot;,
-      &quot;input&quot;: {
-        &quot;title&quot;: &quot;no other fields&quot;
-      }
-    },
-    {
-      &quot;type&quot;: &quot;missing&quot;,
-      &quot;loc&quot;: [
-        &quot;body&quot;,
-        &quot;fix_version&quot;
-      ],
-      &quot;msg&quot;: &quot;Field required&quot;,
-      &quot;input&quot;: {
-        &quot;title&quot;: &quot;no other fields&quot;
-      }
-    },
-    {
-      &quot;type&quot;: &quot;missing&quot;,
-      &quot;loc&quot;: [
-        &quot;body&quot;,
-        &quot;implementation_start&quot;
-      ],
-      &quot;msg&quot;: &quot;Field required&quot;,
-      &quot;input&quot;: {
-        &quot;title&quot;: &quot;no other fields&quot;
-      }
-    },
-    {
-      &quot;type&quot;: &quot;missing&quot;,
-      &quot;loc&quot;: [
-        &quot;body&quot;,
-        &quot;implementation_end&quot;
-      ],
-      &quot;msg&quot;: &quot;Field required&quot;,
-      &quot;input&quot;: {
-        &quot;title&quot;: &quot;no other fields&quot;
-      }
-    }
-  ]
-}</pre></div></details></td>
-<td><code>POST /changes</code></td>
-<td class="mono">422</td>
-<td class="mono">422</td>
+<td class="mono">expected 409, got 409</td>
 <td><span class="pill ok">passed</span></td>
 </tr><tr>
 <td class="k mono">API-19</td>
-<td class="k">A naive timestamp is a 422, not a 400.<details class='exchange'><summary>response body</summary><div class='body'><pre>{
+<td class="k">Submit a change with a timestamp that has no timezone.<details class='exchange'><summary>response</summary><div class='body'><pre>{
   &quot;detail&quot;: [
     {
       &quot;type&quot;: &quot;timezone_aware&quot;,
@@ -1349,12 +357,11 @@ result rather than a restatement of the column on the left.</p>
   ]
 }</pre></div></details></td>
 <td><code>POST /changes</code></td>
-<td class="mono">422</td>
-<td class="mono">422</td>
+<td class="mono">expected 422, got 422</td>
 <td><span class="pill ok">passed</span></td>
 </tr><tr>
 <td class="k mono">API-26</td>
-<td class="k">A field the schema does not declare is refused rather than ignored.<details class='exchange'><summary>response body</summary><div class='body'><pre>{
+<td class="k">Submit a change with a field the API does not define.<details class='exchange'><summary>response</summary><div class='body'><pre>{
   &quot;detail&quot;: [
     {
       &quot;type&quot;: &quot;extra_forbidden&quot;,
@@ -1368,53 +375,103 @@ result rather than a restatement of the column on the left.</p>
   ]
 }</pre></div></details></td>
 <td><code>POST /changes</code></td>
-<td class="mono">422</td>
-<td class="mono">422</td>
+<td class="mono">expected 422, got 422</td>
 <td><span class="pill ok">passed</span></td>
 </tr><tr>
-<td class="k mono">API-27</td>
-<td class="k">A state that does not exist is a 422 from the schema, not a 409 from the graph.<div class='dim'>after 1 setup call</div><details class='exchange'><summary>response body</summary><div class='body'><pre>{
-  &quot;detail&quot;: [
-    {
-      &quot;type&quot;: &quot;enum&quot;,
-      &quot;loc&quot;: [
-        &quot;body&quot;,
-        &quot;to_state&quot;
-      ],
-      &quot;msg&quot;: &quot;Input should be &#x27;draft&#x27;, &#x27;submitted&#x27;, &#x27;approved&#x27;, &#x27;scheduled&#x27;, &#x27;implementing&#x27;, &#x27;verified&#x27;, &#x27;closed&#x27;, &#x27;cancelled&#x27; or &#x27;rolled_back&#x27;&quot;,
-      &quot;input&quot;: &quot;shipped&quot;,
-      &quot;ctx&quot;: {
-        &quot;expected&quot;: &quot;&#x27;draft&#x27;, &#x27;submitted&#x27;, &#x27;approved&#x27;, &#x27;scheduled&#x27;, &#x27;implementing&#x27;, &#x27;verified&#x27;, &#x27;closed&#x27;, &#x27;cancelled&#x27; or &#x27;rolled_back&#x27;&quot;
-      }
-    }
-  ]
-}</pre></div></details></td>
-<td><code>POST /changes/{id}/transition</code></td>
-<td class="mono">422</td>
-<td class="mono">422</td>
-<td><span class="pill ok">passed</span></td>
-</tr>
-</table>
-<h3>500: The service failed. It says so rather than reporting success.</h3>
-<table>
-<tr><th>Case</th><th>What it verifies</th><th>Request</th><th>Expected</th>
-<th>Returned</th><th>Result</th></tr>
-<tr>
 <td class="k mono">API-35</td>
-<td class="k">A change cannot be recorded when the database is unavailable, and the service says so with a 500 rather than reporting success.</td>
+<td class="k">Create a change while the database is unavailable.</td>
 <td><code>POST /changes</code></td>
-<td class="mono">500</td>
-<td class="mono">500</td>
+<td class="mono">expected 500, got 500</td>
 <td><span class="pill ok">passed</span></td>
 </tr>
 </table>
+<p class="dim">These 12 are a selected path through the suite. The full
+35 cases are in the repository and every one of them runs on every
+push. The <a href="evidence.html">request and response log</a> has all of them
+with their bodies.</p>
+
+
+<h2>What it looks like when a case fails</h2>
+<div class="note">Every row above passes, and on this run they did. So here is a
+real failure from this repository's history rather than a manufactured one. A
+change was merged carrying a defect, the whole suite still passed, and this is
+the check that caught it. The defect was introduced deliberately to exercise the
+process, and it was reverted immediately afterwards.</div>
+<div class="card">
+<pre>ok    healthz responds
+ok    healthz reports ok
+FAIL  a change is created: expected 201, got 500
+      the service said: {&#x27;unparsed_body&#x27;: &#x27;Internal Server Error&#x27;}</pre>
+<table>
+<tr><td class="k">The check</td><td>a change is created</td></tr>
+<tr><td class="k">What was expected</td><td class="mono">201</td></tr>
+<tr><td class="k">What came back</td><td class="mono">500</td></tr>
+<tr><td class="k">Why</td><td>the service could not open its database, so it
+failed loudly instead of reporting a change it had not recorded</td></tr>
+<tr><td class="k">What the pipeline did</td><td>held the release: nothing was
+promoted and production stayed on the previous version</td></tr>
+<tr><td class="k">Commit</td><td class="mono">9c2ba89</td></tr>
+<tr><td class="k">Run</td>
+<td><a href="https://github.com/keonikaku/release-gate-api/actions/runs/30518441807">https://github.com/keonikaku/release-gate-api/actions/runs/30518441807</a>,
+<time class="ts" datetime="2026-07-30T06:04:05+00:00">29 Jul 2026, 20:04 HST</time></td></tr>
+</table>
+<p class="dim">Those lines are the run log, not a transcript of it. See
+<a href="demo.html">when a build fails</a> for the rest of what happened.</p>
+</div>
+
+
+<h2>The responses this suite proves</h2>
+<p>A suite that only shows the happy path proves the service works when nothing
+goes wrong, which is the easy half. Counts are cases across the whole suite, not
+just the walkthrough.</p>
+<div class="grid g3"><div class="card">
+  <div class="label">201</div>
+  <div class="kpi">3</div>
+  <p class="dim">Created. The change was recorded and the service says where it is.</p>
+</div><div class="card">
+  <div class="label">200</div>
+  <div class="kpi">17</div>
+  <p class="dim">Accepted. The gate ran the rules, or the lifecycle move was legal.</p>
+</div><div class="card">
+  <div class="label">400</div>
+  <div class="kpi">2</div>
+  <p class="dim">Refused. The request was read and understood, and a rule said no.</p>
+</div><div class="card">
+  <div class="label">404</div>
+  <div class="kpi">4</div>
+  <p class="dim">No such change. The identifier does not name anything.</p>
+</div><div class="card">
+  <div class="label">409</div>
+  <div class="kpi">4</div>
+  <p class="dim">Conflict. The request is legal in general and not from this state.</p>
+</div><div class="card">
+  <div class="label">422</div>
+  <div class="kpi">4</div>
+  <p class="dim">Unreadable. The request could not be parsed into a change at all.</p>
+</div><div class="card">
+  <div class="label">500</div>
+  <div class="kpi">1</div>
+  <p class="dim">The service failed. It says so rather than reporting success.</p>
+</div></div>
+
+
+<div class="note"><strong>400 and 422 are not the same refusal, and this
+service does not treat them as one.</strong> A 422 means the request could
+not be read: a missing field, a timestamp with no timezone, a state that does not
+exist. A 400 means the request was read and understood, and a rule refused
+it. Collapsing them is common and it costs something real: in any log, metric or
+alert built on status codes, a caller with a bug and a change that is not ready
+become the same event. The reasoning is recorded in
+<a href="https://github.com/keonikaku/release-gate-api/blob/main/docs/decisions/0002-status-codes.md">decision
+0002</a>, and there are 2 cases on one and
+4 on the other.</div>
 
 <footer>
 Every page here is generated by the post-merge workflow from the artifacts of a
 real run. No number on this site is typed in. The sentences that explain what
 you are looking at are written by a person; every figure, result, timestamp and
 link beside them comes from the run.
-Built from commit <code>e67dfc2</code> at <time class="ts" datetime="2026-07-30T20:14:35.928227+00:00">30 Jul 2026, 10:14 HST</time>.
+Built from commit <code>399e720</code> at <time class="ts" datetime="2026-07-30T20:29:58.590506+00:00">30 Jul 2026, 10:29 HST</time>.
 <br>
 <a href="https://github.com/keonikaku/release-gate-api">Repository</a> &middot;
 <a href="https://github.com/keonikaku/release-gate-api/actions/workflows/post-merge.yml">Run history</a>
