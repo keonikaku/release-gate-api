@@ -58,7 +58,13 @@ jobs:
       - name: Lint
         run: ruff check .
 
+      # Capture is on here and off everywhere else. Every exchange the suite
+      # makes is recorded with the case that made it, what that case claims to
+      # cover, and whether it passed. The evidence pages are built from these
+      # files, so nothing on them is authored after the fact.
       - name: Full suite
+        env:
+          RELEASE_GATE_EVIDENCE: reports/evidence
         run: pytest --junitxml=reports/junit.xml
 
       # The suite above drives the application in process. This step builds a
@@ -77,11 +83,11 @@ jobs:
             if curl -sf http://127.0.0.1:8000/healthz > /dev/null; then break; fi
             sleep 0.5
           done
-          python tools/smoke.py http://127.0.0.1:8000
+          python -m tools.smoke http://127.0.0.1:8000
           kill "$(cat reports/service.pid)"
 
       - name: Export the OpenAPI document
-        run: python tools/export_openapi.py reports/openapi.json
+        run: python -m tools.export_openapi reports/openapi.json
 
       - name: Upload verification evidence
         if: always()
@@ -142,3 +148,81 @@ jobs:
             --target "${{ github.sha }}" \
             --title "${{ steps.version.outputs.version }}" \
             --notes "Promoted by run ${{ github.run_id }} after the full suite passed on ${{ github.sha }}."
+
+  publish:
+    name: Publish the evidence
+    needs: [verify, promote]
+    # Runs whether or not verification passed, and whether or not promotion was
+    # skipped. That is the point: a dashboard that only updates on green days
+    # shows a pass rate of one hundred percent and evidences nothing. When the
+    # gate holds, this job is what records that it held.
+    if: always() && github.ref == 'refs/heads/main' && needs.verify.result != 'cancelled'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The ledger and the published site live here and nowhere else. Keeping
+      # them off main is what makes "written only by CI" structural: there is no
+      # branch on which a person edits them as part of a normal change.
+      - name: Check out the evidence branch
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: published
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      # No pip install. The publishing tools are standard library only, so this
+      # job cannot fail on a dependency resolution and cannot be poisoned by one.
+      - name: Download what the verify job produced
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: verification-evidence-${{ github.run_number }}
+          path: reports
+
+      - name: Read GitHub's own record
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m tools.collect_github --out reports
+
+      - name: Record this run in the ledger
+        run: |
+          python -m tools.record_run \
+            --junit reports/junit.xml \
+            --ledger published/results/runs.csv \
+            --run-number ${{ github.run_number }} \
+            --run-id ${{ github.run_id }} \
+            --sha ${{ github.sha }} \
+            --branch ${{ github.ref_name }} \
+            --result ${{ needs.verify.result == 'success' && 'pass' || 'fail' }}
+
+      - name: Build the evidence site
+        run: |
+          python -m tools.build_site \
+            --reports reports \
+            --ledger published/results/runs.csv \
+            --out published \
+            --sha ${{ github.sha }} \
+            --run-id ${{ github.run_id }}
+
+      - name: Publish
+        working-directory: published
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "nothing changed"
+            exit 0
+          fi
+          git commit -m "Publish evidence from run ${{ github.run_id }} on ${{ github.sha }}"
+          git push

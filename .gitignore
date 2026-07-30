@@ -17,3 +17,5 @@ venv/
 # Generated evidence. Written by CI, never by hand.
 reports/
 .venv/
+site/
+published/
