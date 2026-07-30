@@ -812,3 +812,151 @@ def test_a_non_json_error_body_is_reported_rather_than_raised():
     assert smoke.decode(b'{"code": "x"}') == {"code": "x"}
     plain = smoke.decode(b"Internal Server Error")
     assert "Internal Server Error" in plain["unparsed_body"]
+
+
+# The blocked run, described from its own record --------------------------------
+
+
+VERIFY_JOB = {
+    "name": "Verify main",
+    "conclusion": "failure",
+    "steps": [
+        {"name": "Lint", "conclusion": "success"},
+        {"name": "Full suite", "conclusion": "success"},
+        {"name": "Smoke the freshly built instance", "conclusion": "failure"},
+        {"name": "Export the OpenAPI document", "conclusion": "skipped"},
+    ],
+}
+
+
+def test_the_failing_step_is_named_from_the_run_record():
+    """The page reports which step failed, not which one it assumes failed.
+
+    Layer: unit
+    Covers: none
+    Why this layer: the page said a test failed when the suite was green and the
+    smoke step was what went red. The correction is only durable if the name
+    comes from the record rather than from a sentence someone wrote once.
+    """
+    run = {"jobs": [VERIFY_JOB]}
+    assert build_site.failed_steps(run, "Verify") == ["Smoke the freshly built instance"]
+    assert build_site.failed_steps(run, "Promote") == []
+
+
+def test_the_step_summary_says_where_a_job_failed():
+    """A job row carries its step outcomes.
+
+    Layer: unit
+    Covers: none
+    Why this layer: a job conclusion alone does not say what went wrong, which
+    is how the page came to describe it wrongly in prose.
+    """
+    summary = build_site.step_summary(VERIFY_JOB)
+    assert "Smoke the freshly built instance" in summary
+    assert "failed at" in summary
+
+    green = {"steps": [{"name": "Lint", "conclusion": "success"}]}
+    assert build_site.step_summary(green) == "1 steps, all passed"
+
+
+def test_a_failed_run_with_a_green_suite_is_explained():
+    """A `fail` row beside a full pass count gets a line saying why.
+
+    Layer: unit
+    Covers: none
+    Why this layer: the pairing looks like a broken ledger to anyone reading the
+    dashboard, and the explanation has to appear exactly when the pairing does.
+    """
+    green_and_failed = runs.RunRow(
+        run_number=6,
+        run_id="30518441807",
+        commit_sha="a" * 40,
+        branch="main",
+        started_at="2026-07-30T03:00:00+00:00",
+        result=runs.RESULT_FAIL,
+        total=201,
+        passed=201,
+        failed=0,
+        skipped=0,
+        duration_seconds=1.0,
+        promoted_version="",
+    )
+    note = build_site.green_suite_but_failed_note([green_and_failed])
+    assert "run 6" in note
+    assert "not a contradiction" in note
+
+    assert build_site.green_suite_but_failed_note([row(1)]) == ""
+
+
+def test_the_note_reports_the_case_count_from_the_ledger():
+    """The number in the prose comes from the run, never from the page.
+
+    Layer: unit
+    Covers: none
+    Why this layer: "no number on this site is typed in" is a claim the site
+    makes about itself, and this note is prose with a number in it.
+    """
+    blocked = {"databaseId": 30518441807, "jobs": [VERIFY_JOB]}
+    ledger = [
+        runs.RunRow(
+            run_number=6,
+            run_id="30518441807",
+            commit_sha="a" * 40,
+            branch="main",
+            started_at="2026-07-30T03:00:00+00:00",
+            result=runs.RESULT_FAIL,
+            total=201,
+            passed=201,
+            failed=0,
+            skipped=0,
+            duration_seconds=1.0,
+            promoted_version="",
+        )
+    ]
+    data = build_site.Inputs(
+        rows=(),
+        cases=(),
+        run_results=None,
+        ledger=ledger,
+        captured=[],
+        openapi=None,
+        gh_runs=[blocked],
+        production=None,
+        open_blockers=None,
+        sha="a" * 40,
+        run_id="1",
+        generated_at=datetime.now(UTC),
+    )
+    note = build_site.suite_passed_note(data, blocked)
+    assert "All 201 of 201 cases were green" in note
+    assert "Smoke the freshly built instance" in note
+
+    data_without_ledger = build_site.Inputs(**{**data.__dict__, "ledger": []})
+    assert "The suite was green" in build_site.suite_passed_note(
+        data_without_ledger, blocked
+    )
+
+
+def test_the_branch_condition_is_ruled_out_from_the_same_run():
+    """If the publish job ran, the ref check passed on that run.
+
+    Layer: unit
+    Covers: none
+    Why this layer: publish carries the same `github.ref` condition as promote,
+    so its success is a disproof of the objection that the ref check is what
+    skipped promotion. The sentence only appears when the record supports it.
+    """
+    with_publish = {
+        "jobs": [
+            VERIFY_JOB,
+            {"name": "Publish the evidence", "conclusion": "success", "steps": []},
+            {"name": "Promote to production", "conclusion": "skipped", "steps": []},
+        ]
+    }
+    proof = build_site.ref_condition_proof(with_publish)
+    assert "identical" in proof
+    assert "github.ref" in proof
+
+    without_publish = {"jobs": [VERIFY_JOB]}
+    assert build_site.ref_condition_proof(without_publish) == ""
+    assert build_site.ref_condition_proof(None) == ""
