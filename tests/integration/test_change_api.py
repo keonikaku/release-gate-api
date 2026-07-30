@@ -42,12 +42,12 @@ def advance(client, change_id: str, *states: str) -> None:
 
 @pytest.mark.endpoint(HEALTH)
 def test_health_reports_the_running_version(client):
-    """The service answers, and names the version it is running.
+    """Health check on a running service.
+
+    The service answers, and names the version it is running.
 
     Case: API-29
-
     Expects: 200
-
     Layer: integration
     Covers: none
     Why this layer: liveness is a property of the process. There is nothing to
@@ -61,12 +61,12 @@ def test_health_reports_the_running_version(client):
 
 @pytest.mark.endpoint(CREATE)
 def test_a_new_change_is_created_in_draft(client):
-    """Creating a change records it in Draft with the injected timestamp.
+    """Create a change request with a complete submission.
+
+    Creating a change records it in Draft with the injected timestamp.
 
     Case: API-20
-
     Expects: 201
-
     Layer: integration
     Covers: REQ-2
     Why this layer: the record is written by the store and read back through the
@@ -83,12 +83,12 @@ def test_a_new_change_is_created_in_draft(client):
 
 @pytest.mark.endpoint(CREATE)
 def test_a_malformed_payload_is_a_schema_error_not_a_refusal(client):
-    """A naive timestamp is a 422, not a 400.
+    """Submit a change with a timestamp that has no timezone.
+
+    A naive timestamp is a 422, not a 400.
 
     Case: API-19
-
     Expects: 422
-
     Layer: integration
     Covers: none
     Why this layer: the distinction between "I could not read this" and "I read
@@ -101,12 +101,12 @@ def test_a_malformed_payload_is_a_schema_error_not_a_refusal(client):
 
 @pytest.mark.endpoint(CREATE)
 def test_an_unknown_field_is_rejected_by_the_schema(client):
-    """A field the schema does not declare is refused rather than ignored.
+    """Submit a change with a field the API does not define.
+
+    A field the schema does not declare is refused rather than ignored.
 
     Case: API-26
-
     Expects: 422
-
     Layer: integration
     Covers: none
     Why this layer: silently dropping an unknown field is how a submitter comes
@@ -119,12 +119,12 @@ def test_an_unknown_field_is_rejected_by_the_schema(client):
 
 @pytest.mark.endpoint(READ)
 def test_a_change_can_be_read_back(client):
-    """What was written is what is read.
+    """Read back a change that was just created.
+
+    What was written is what is read.
 
     Case: API-15
-
     Expects: 200
-
     Layer: integration
     Covers: REQ-2
     Why this layer: persistence across two requests is invisible to a unit test.
@@ -137,13 +137,12 @@ def test_a_change_can_be_read_back(client):
 
 @pytest.mark.endpoint(READ)
 def test_an_unknown_change_is_a_404(client):
-    """Reading a change that does not exist is a 404 with a machine readable
-    code.
+    """Read a change that does not exist.
+
+    Reading a change that does not exist is a 404 with a machine readable code.
 
     Case: API-25
-
     Expects: 404
-
     Layer: integration
     Covers: none
     Why this layer: status code mapping is an HTTP concern.
@@ -155,13 +154,12 @@ def test_an_unknown_change_is_a_404(client):
 
 @pytest.mark.endpoint(SUBMIT)
 def test_a_valid_submission_is_accepted_and_persisted(client):
-    """A submission that passes all seven rules moves to Submitted and stays
-    there.
+    """Submit a change that meets every gate rule.
+
+    A submission that passes all seven rules moves to Submitted and stays there.
 
     Case: API-23
-
     Expects: 200
-
     Layer: integration
     Covers: REQ-1, REQ-2
     Why this layer: the happy path end to end, which is the case a reviewer
@@ -178,9 +176,7 @@ def test_a_refused_submission_names_every_rule_it_broke(client):
     Draft.
 
     Case: API-21
-
     Expects: 200
-
     Layer: integration
     Covers: REQ-1
     Why this layer: the rule set is proved at the unit layer. What is proved
@@ -202,12 +198,12 @@ def test_a_refused_submission_names_every_rule_it_broke(client):
 
 @pytest.mark.endpoint(SUBMIT)
 def test_a_spa_release_without_prod_support_is_accepted(client):
-    """The SPA row of the on call matrix, exercised through the API.
+    """Submit a single page app release with no Prod Support on call.
+
+    The SPA row of the on call matrix, exercised through the API.
 
     Case: API-22
-
     Expects: 200
-
     Layer: integration
     Covers: REQ-1.6
     Why this layer: duplicated from the unit layer on purpose. It is the row a
@@ -224,12 +220,12 @@ def test_a_spa_release_without_prod_support_is_accepted(client):
 
 @pytest.mark.endpoint(SUBMIT)
 def test_a_change_missing_bat_evidence_is_refused(client):
-    """REQ-1.2 through the API. There is no exemption from BAT.
+    """Submit a change with no BAT test evidence.
+
+    REQ-1.2 through the API. There is no exemption from BAT.
 
     Case: API-18
-
     Expects: 400
-
     Layer: integration
     Covers: REQ-1.2
     Why this layer: proves the endpoint actually reaches this rule rather than
@@ -249,12 +245,12 @@ def test_a_change_missing_bat_evidence_is_refused(client):
 
 @pytest.mark.endpoint(SUBMIT)
 def test_a_change_cannot_be_submitted_twice(client):
-    """Submitting an already submitted change is a 409.
+    """Submit the same change twice.
+
+    Submitting an already submitted change is a 409.
 
     Case: API-17
-
     Expects: 409
-
     Layer: integration
     Covers: REQ-2
     Why this layer: needs a stored state from a previous request.
@@ -271,9 +267,7 @@ def test_submitting_an_unknown_change_is_a_404(client):
     """Submitting a change that does not exist is a 404, not a 400.
 
     Case: API-30
-
     Expects: 404
-
     Layer: integration
     Covers: none
     Why this layer: the order of the checks inside the endpoint is only visible
@@ -287,9 +281,7 @@ def test_the_lifecycle_can_be_walked_end_to_end(client):
     """Draft to Closed through every legal state, one request at a time.
 
     Case: API-31
-
     Expects: 200
-
     Layer: integration
     Covers: REQ-2
     Why this layer: the graph is proved at the unit layer. This proves each move
@@ -309,9 +301,7 @@ def test_a_change_can_be_cancelled_before_implementing(client):
     """A scheduled change can still be cancelled.
 
     Case: API-14
-
     Expects: 200
-
     Layer: integration
     Covers: REQ-2.1
     Why this layer: the positive half of REQ-2.1 through HTTP, beside its
@@ -328,9 +318,7 @@ def test_a_change_cannot_be_cancelled_once_implementing(client):
     """Cancelling during implementation is a 409 naming REQ-2.1.
 
     Case: API-16
-
     Expects: 409
-
     Layer: integration
     Covers: REQ-2.1
     Why this layer: the negative half, and it asserts the rule ID a caller would
@@ -348,12 +336,12 @@ def test_a_change_cannot_be_cancelled_once_implementing(client):
 
 @pytest.mark.endpoint(TRANSITION)
 def test_an_implementing_change_cannot_return_to_approved(client):
-    """REQ-2.2 through HTTP, with the refusing rule in the body.
+    """Move a change backwards from Implementing to Approved.
+
+    REQ-2.2 through HTTP, with the refusing rule in the body.
 
     Case: API-24
-
     Expects: 409
-
     Layer: integration
     Covers: REQ-2.2
     Why this layer: named in the requirements, so a reviewer will look for it at
@@ -375,9 +363,7 @@ def test_failed_verification_cannot_close_without_rolling_back(client):
     Rolled Back is allowed.
 
     Case: API-28
-
     Expects: 200
-
     Layer: integration
     Covers: REQ-2.3
     Why this layer: both halves in one case because the second move is what
@@ -398,9 +384,7 @@ def test_validation_cannot_be_stepped_around_with_a_transition(client):
     skipped.
 
     Case: API-34
-
     Expects: 200
-
     Layer: integration
     Covers: REQ-1, REQ-2
     Why this layer: this is a hole in the interface rather than in the rules.
@@ -421,9 +405,7 @@ def test_an_unknown_target_state_is_a_schema_error(client):
     graph.
 
     Case: API-27
-
     Expects: 422
-
     Layer: integration
     Covers: none
     Why this layer: which layer refuses the value is an interface decision, and
@@ -439,9 +421,7 @@ def test_transitioning_an_unknown_change_is_a_404(client):
     """A transition on a change that does not exist is a 404.
 
     Case: API-32
-
     Expects: 404
-
     Layer: integration
     Covers: none
     Why this layer: completes the status code matrix for this endpoint.
@@ -455,9 +435,7 @@ def test_two_changes_do_not_share_state(client):
     """Two changes created in the same instance advance independently.
 
     Case: API-33
-
     Expects: 200
-
     Layer: integration
     Covers: REQ-2
     Why this layer: shared state between records is a storage defect, and it
@@ -515,7 +493,9 @@ def test_the_real_store_wiring_opens_a_usable_database(tmp_path, monkeypatch):
 
 @pytest.mark.endpoint(CREATE)
 def test_a_database_failure_surfaces_as_a_500(caller_client, store):
-    """A change cannot be recorded when the database is unavailable, and the
+    """Create a change while the database is unavailable.
+
+    A change cannot be recorded when the database is unavailable, and the
     service says so with a 500 rather than reporting success.
 
     This is the error path nobody writes a case for. A service that swallows a

@@ -47,6 +47,7 @@ class Inputs:
     captured: list[evidence.CapturedCase]
     openapi: dict | None
     gh_runs: list[dict]
+    failure_log: dict | None
     production: dict | None
     open_blockers: int | None
     sha: str
@@ -78,6 +79,7 @@ def gather(reports: Path, ledger: Path, sha: str, run_id: str) -> Inputs:
         captured=evidence.load(reports / "evidence"),
         openapi=load_json(reports / "openapi.json"),
         gh_runs=gh_runs if isinstance(gh_runs, list) else [],
+        failure_log=load_json(reports / "failure-log.json"),
         production=load_json(reports / "production.json"),
         open_blockers=(blockers or {}).get("open") if isinstance(blockers, dict) else None,
         sha=sha,
@@ -103,13 +105,14 @@ def documented_endpoints(spec: dict | None) -> tuple[str, ...]:
 def api_tests_page(data: Inputs) -> str:
     """The case list. Written to be read by someone who never opens the repo."""
     cases = api_cases.build(data.cases, data.captured)
+    walk = api_cases.walkthrough(cases)
     grouped = api_cases.by_status(cases)
     ran = [case for case in cases if case.observed is not None]
     passed = [case for case in ran if case.passed]
 
     cards = "".join(
         f"""<div class="card">
-  <div class="label">{esc(status)} {esc("responses")}</div>
+  <div class="label">{esc(status)}</div>
   <div class="kpi">{len(group)}</div>
   <p class="dim">{esc(api_cases.STATUS_MEANING[status])}</p>
 </div>"""
@@ -117,23 +120,20 @@ def api_tests_page(data: Inputs) -> str:
         if status in api_cases.STATUS_MEANING
     )
 
-    sections = "".join(status_section(status, group) for status, group in grouped.items())
-
     return f"""
-<h1>API testing: every case, and what the service returned</h1>
-<p class="lede">{len(cases)} test cases against a REST service, each one naming
-the request it sends and the response it expects. Every status code below was
-returned by the running service during the run that generated this page. Nothing
-here is a screenshot or a description of a test.</p>
+<h1>API testing: what each case sends, and what came back</h1>
+<p class="lede">A walkthrough of {len(walk)} cases against a REST service, in the
+order you would meet them. Each row says what it sent, what status it expected,
+and what the service actually returned on the run that generated this page.</p>
 
 <div class="grid g3">
   <div class="card">
-    <div class="label">Cases</div>
+    <div class="label">Cases in the suite</div>
     <div class="kpi">{len(cases)}</div>
-    <p class="dim">across the API and contract layers</p>
+    <p class="dim">{len(walk)} of them are walked through below</p>
   </div>
   <div class="card">
-    <div class="label">Passing</div>
+    <div class="label">Passing on this run</div>
     <div class="kpi">{len(passed)} of {len(ran)}</div>
     <p class="dim">{outcome_pill("pass" if len(passed) == len(ran) and ran else "fail")}</p>
   </div>
@@ -144,65 +144,112 @@ here is a screenshot or a description of a test.</p>
   </div>
 </div>
 
+<div class="note"><strong>A case that expects a refusal and gets one is a pass.</strong>
+Half of the cases below check that the service says no when it should: a change
+that does not exist, a rule that is not satisfied, a payload that cannot be read,
+a database that is gone. Each row states the check in full, so
+<code>expected 404, got 404, PASS</code> reads as what it is.</div>
+
+<h2>The walkthrough</h2>
+{walkthrough_table(walk)}
+<p class="dim">These {len(walk)} are a selected path through the suite. The full
+{len(cases)} cases are in the repository and every one of them runs on every
+push. The <a href="evidence.html">request and response log</a> has all of them
+with their bodies.</p>
+
+{failure_section(data)}
+
 <h2>The responses this suite proves</h2>
 <p>A suite that only shows the happy path proves the service works when nothing
-goes wrong, which is the easy half. These are the ways a request can be refused,
-each with cases behind it.</p>
+goes wrong, which is the easy half. Counts are cases across the whole suite, not
+just the walkthrough.</p>
 <div class="grid g3">{cards}</div>
 
 {contrast_note(grouped)}
-
-<h2>The cases</h2>
-<p>Grouped by the status each one expects. <strong>Expected</strong> is declared
-in the test itself. <strong>Returned</strong> is what the service answered on
-this run. The build fails if those two disagree, so the column on the right is a
-result rather than a restatement of the column on the left.</p>
-{sections}
 """
 
 
-def status_section(status: int, group: list) -> str:
-    """One status code, its meaning, and the cases that expect it."""
+def walkthrough_table(walk: tuple) -> str:
+    """The curated cases, in narrative order, with the assertion spelled out."""
     rows = []
-    for case in group:
+    for case in walk:
         subject = case.subject
         call = (
             f"<code>{esc(subject.method)} {esc(short_path(subject.path))}</code>"
             if subject
             else "<span class='dim'>not run</span>"
         )
-        setup = (
-            f"<div class='dim'>after {len(case.setup)} setup "
-            f"{'call' if len(case.setup) == 1 else 'calls'}</div>"
-            if case.setup
-            else ""
-        )
         body = (
-            f"<details class='exchange'><summary>response body</summary>"
-            f"<div class='body'><pre>{esc(json.dumps(subject.response_body, indent=2)[:1200])}</pre></div>"
-            f"</details>"
+            f"<details class='exchange'><summary>response</summary><div class='body'>"
+            f"<pre>{esc(trimmed_body(subject.response_body))}</pre></div></details>"
             if subject and subject.response_body is not None
             else ""
         )
         rows.append(
             f"""<tr>
 <td class="k mono">{esc(case.case_id)}</td>
-<td class="k">{esc(case.title)}{setup}{body}</td>
+<td class="k">{esc(case.title)}{body}</td>
 <td>{call}</td>
-<td class="mono">{esc(case.expects)}</td>
-<td class="mono">{esc(case.observed if case.observed is not None else "-")}</td>
+<td class="mono">{esc(case.assertion)}</td>
 <td>{outcome_pill(case.outcome)}</td>
 </tr>"""
         )
-
-    meaning = api_cases.STATUS_MEANING.get(status, "")
-    return f"""
-<h3>{esc(status)}{": " + esc(meaning) if meaning else ""}</h3>
-<table>
-<tr><th>Case</th><th>What it verifies</th><th>Request</th><th>Expected</th>
-<th>Returned</th><th>Result</th></tr>
+    return f"""<table>
+<tr><th>Case</th><th>What it does</th><th>Request</th><th>Assertion</th>
+<th>Result</th></tr>
 {"".join(rows)}
 </table>"""
+
+
+def trimmed_body(body: object, limit: int = 900) -> str:
+    """A response body, short enough to read in a table row."""
+    text = json.dumps(body, indent=2)
+    if len(text) <= limit:
+        return text
+    return text[:limit] + f"\n... {len(text) - limit} more characters"
+
+
+def failure_section(data: Inputs) -> str:
+    """The one real failure, taken out of GitHub's log for that run.
+
+    Nothing here is typed. The expected status, the status that came back and
+    the run they belong to are lifted out of the log of the run that failed, so
+    the numbers cannot drift from what happened.
+    """
+    failure = data.failure_log
+    if not failure or not failure.get("lines"):
+        return ""
+
+    log = "\n".join(failure["lines"])
+    parsed = api_cases.parse_smoke_failure(failure["lines"])
+    if not parsed:
+        return ""
+    return f"""
+<h2>What it looks like when a case fails</h2>
+<div class="note">Every row above passes, and on this run they did. So here is a
+real failure from this repository's history rather than a manufactured one. A
+change was merged carrying a defect, the whole suite still passed, and this is
+the check that caught it. The defect was introduced deliberately to exercise the
+process, and it was reverted immediately afterwards.</div>
+<div class="card">
+<pre>{esc(log)}</pre>
+<table>
+<tr><td class="k">The check</td><td>{esc(parsed["check"])}</td></tr>
+<tr><td class="k">What was expected</td><td class="mono">{esc(parsed["expected"])}</td></tr>
+<tr><td class="k">What came back</td><td class="mono">{esc(parsed["actual"])}</td></tr>
+<tr><td class="k">Why</td><td>the service could not open its database, so it
+failed loudly instead of reporting a change it had not recorded</td></tr>
+<tr><td class="k">What the pipeline did</td><td>held the release: nothing was
+promoted and production stayed on the previous version</td></tr>
+<tr><td class="k">Commit</td><td class="mono">{esc(str(failure.get("commit_sha", ""))[:7])}</td></tr>
+<tr><td class="k">Run</td>
+<td><a href="{esc(failure.get("url"))}">{esc(failure.get("url"))}</a>,
+{time_tag(failure.get("created_at"))}</td></tr>
+</table>
+<p class="dim">Those lines are the run log, not a transcript of it. See
+<a href="demo.html">when a build fails</a> for the rest of what happened.</p>
+</div>
+"""
 
 
 def short_path(path: str) -> str:

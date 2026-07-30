@@ -15,6 +15,7 @@ publishing a docstring rather than a result.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from tools import traceability
@@ -33,10 +34,50 @@ STATUS_MEANING: dict[int, str] = {
     500: "The service failed. It says so rather than reporting success.",
 }
 
+#: The walkthrough, in the order a reader should meet it: bring the service up,
+#: create something, read it back, ask for something that is not there, get
+#: refused by a rule, succeed, then every way the service says no, and finally
+#: what it does when its own database is gone.
+#:
+#: The suite is larger than this. The page says so and says this is a selected
+#: path through it, because a reader who thinks twelve cases is the whole suite
+#: has been misled either way.
+WALKTHROUGH: tuple[str, ...] = (
+    "test_health_reports_the_running_version",
+    "test_a_new_change_is_created_in_draft",
+    "test_a_change_can_be_read_back",
+    "test_an_unknown_change_is_a_404",
+    "test_a_change_missing_bat_evidence_is_refused",
+    "test_a_valid_submission_is_accepted_and_persisted",
+    "test_a_spa_release_without_prod_support_is_accepted",
+    "test_a_change_cannot_be_submitted_twice",
+    "test_an_implementing_change_cannot_return_to_approved",
+    "test_a_malformed_payload_is_a_schema_error_not_a_refusal",
+    "test_an_unknown_field_is_rejected_by_the_schema",
+    "test_a_database_failure_surfaces_as_a_500",
+)
+
 #: The pair worth explaining to anyone reading the list. Most services collapse
 #: these two, and collapsing them makes a caller with a bug and a change that is
 #: not ready look identical in every log and metric built on status codes.
 CONTRASTING_PAIR = (400, 422)
+
+
+#: The line the smoke script prints when a check does not hold. Parsed rather
+#: than restated, so the published expected and actual values cannot drift from
+#: the log they came out of.
+SMOKE_FAILURE = re.compile(
+    r"^FAIL\s+(?P<check>.+?):\s*expected\s+(?P<expected>\d+),\s*got\s+(?P<actual>\d+)"
+)
+
+
+def parse_smoke_failure(lines: list[str]) -> dict[str, str] | None:
+    """The check, the expected status and the status that came back."""
+    for line in lines:
+        found = SMOKE_FAILURE.match(line.strip())
+        if found:
+            return found.groupdict()
+    return None
 
 
 @dataclass(frozen=True)
@@ -75,6 +116,20 @@ class ApiCase:
         if self.expects is None or self.observed is None:
             return False
         return self.expects == self.observed
+
+    @property
+    def assertion(self) -> str:
+        """The check this case made, spelled out.
+
+        A row reading "404 PASS" makes a reader work out what was being
+        asserted, and next to a 500 it reads like something is broken. Saying
+        "expected 500, got 500" removes the inference.
+        """
+        if self.expects is None:
+            return "no expected status declared"
+        if self.observed is None:
+            return f"expected {self.expects}, did not run"
+        return f"expected {self.expects}, got {self.observed}"
 
     @property
     def sort_key(self) -> tuple[int, str]:
@@ -117,6 +172,18 @@ def build(
             )
         )
     return tuple(sorted(joined, key=lambda c: c.sort_key))
+
+
+def walkthrough(api_cases_all: tuple[ApiCase, ...]) -> tuple[ApiCase, ...]:
+    """The selected cases, in narrative order rather than status order."""
+    by_name = {case.name: case for case in api_cases_all}
+    return tuple(by_name[name] for name in WALKTHROUGH if name in by_name)
+
+
+def missing_from_walkthrough(api_cases_all: tuple[ApiCase, ...]) -> list[str]:
+    """Walkthrough entries that no longer name a case that exists."""
+    known = {case.name for case in api_cases_all}
+    return [name for name in WALKTHROUGH if name not in known]
 
 
 def disagreements(api_cases: tuple[ApiCase, ...]) -> list[str]:
