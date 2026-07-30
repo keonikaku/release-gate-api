@@ -1,20 +1,20 @@
 {
   "decision": "GO",
-  "commit_sha": "5e1deb7fd1f5e8f9f1dd8208d9e3bf8b97c17786",
-  "generated_at": "2026-07-30T06:50:44.977086+00:00",
-  "run_id": "30520829953",
+  "commit_sha": "e67dfc2f35e1913060ed5597fd5b03e7f68eebac",
+  "generated_at": "2026-07-30T20:14:35.928227+00:00",
+  "run_id": "30578244688",
   "criteria": [
     {
       "id": "C1",
       "statement": "The full suite passes on this commit.",
       "verdict": "MET",
-      "detail": "212 of 212 cases passed."
+      "detail": "221 of 221 cases passed."
     },
     {
       "id": "C2",
       "statement": "No case was skipped, so a pass is the whole suite passing.",
       "verdict": "MET",
-      "detail": "212 cases ran, none skipped."
+      "detail": "221 cases ran, none skipped."
     },
     {
       "id": "C3",
