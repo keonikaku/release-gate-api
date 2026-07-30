@@ -68,19 +68,92 @@ def test_no_test_claims_a_requirement_that_does_not_exist():
     assert invented == [], f"tests claim requirements that do not exist: {invented}"
 
 
-def test_at_least_one_requirement_is_honestly_uncovered():
-    """The traceability table is not all green, and says so on purpose.
+def test_every_gap_entry_is_well_formed():
+    """A gap declares something only if it says what and why.
 
     Layer: meta
     Covers: none
-    Why this layer: it is a statement about the suite as a whole. REQ-3 is
-    enforced by the pipeline rather than by the service, so no case in this
-    repository can assert it, and the gaps section says that in plain words
-    rather than leaving a green row that would be untrue.
+    Why this layer: without this, pasting a requirement ID under the gaps
+    heading would turn an untested requirement into an accepted one. The
+    declaration has to cost a written reason, and the parser only reads entries,
+    so loose prose under the heading declares nothing at all.
+    """
+    entries = traceability.gap_entries()
+    assert entries, "no gap entry was parsed from the test design"
+    problems = [problem for gap in entries for problem in gap.problems]
+    assert problems == [], "\n".join(problems)
+
+
+def test_a_gap_that_claims_no_coverage_has_no_coverage():
+    """Per gap, not "at least one gap somewhere".
+
+    Layer: meta
+    Covers: none
+    Why this layer: this is the guard the README claims. If any test starts
+    claiming a requirement that an entry says is untested, the entry has become
+    untrue and the build fails until it is rewritten. Checking that some gap
+    somewhere is still uncovered would let every other gap rot.
+    """
+    broken = []
+    for gap in traceability.gap_entries():
+        if not gap.declares_no_coverage:
+            continue
+        for requirement in gap.requirements:
+            covering = sorted(COVERAGE.get(requirement, ()))
+            if covering:
+                broken.append(
+                    f"{gap.id} says {requirement} has no coverage, but it is "
+                    f"claimed by: {', '.join(covering)}"
+                )
+    assert broken == [], "\n".join(broken)
+
+
+def test_a_gap_that_claims_partial_coverage_has_some_coverage():
+    """The other direction: partial cannot describe a total absence.
+
+    Layer: meta
+    Covers: none
+    Why this layer: a requirement with no tests at all, filed as partly covered,
+    would read on the published table as better than it is.
+    """
+    broken = [
+        f"{gap.id} says {requirement} is partly covered, but no test claims it"
+        for gap in traceability.gap_entries()
+        if gap.coverage == traceability.COVERAGE_PARTIAL
+        for requirement in gap.requirements
+        if not COVERAGE.get(requirement)
+    ]
+    assert broken == [], "\n".join(broken)
+
+
+def test_a_gap_that_names_a_guard_names_a_test_that_exists():
+    """A guard reference points at a real case.
+
+    Layer: meta
+    Covers: none
+    Why this layer: the guard line is published beside the gap, so a stale one
+    would be a claim about a test that is not there.
+    """
+    known = {case.node_id for case in CASES}
+    missing = [
+        f"{gap.id} names a guard that does not exist: {gap.guarded_by}"
+        for gap in traceability.gap_entries()
+        if gap.guarded_by and gap.guarded_by not in known
+    ]
+    assert missing == [], "\n".join(missing)
+
+
+def test_the_suite_still_has_something_it_does_not_cover():
+    """At least one requirement is honestly uncovered.
+
+    Layer: meta
+    Covers: none
+    Why this layer: a table where everything is green and nothing is missing
+    reads as fabricated. This is the weakest of the gap checks on purpose: the
+    three above are the ones that hold each individual gap honest.
     """
     assert GAPS, "no requirement is recorded as a gap"
-    uncovered = sorted(GAPS - set(COVERAGE))
-    assert uncovered, "every stated gap is also covered, so the gaps list is stale"
+    assert sorted(GAPS - set(COVERAGE)), "every declared gap is also covered"
 
 
 def test_the_named_rules_all_have_tests():

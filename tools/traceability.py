@@ -27,6 +27,12 @@ LAYERS = ("unit", "contract", "integration", "meta")
 
 GAPS_HEADING = "## Stated gaps"
 OPEN_QUESTIONS_HEADING = "## Open questions"
+GAP_ENTRY = re.compile(r"^### (GAP-\d+): (.+)$", re.MULTILINE)
+FIELD = re.compile(r"^\*\*(Requirements|Coverage|Guarded by|Reason):\*\*", re.MULTILINE)
+
+COVERAGE_NONE = "none"
+COVERAGE_PARTIAL = "partial"
+MINIMUM_REASON = 120
 
 
 @dataclass(frozen=True)
@@ -40,6 +46,40 @@ class TestCase:
     covers: tuple[str, ...]
     endpoint: str | None = None
     reason: str = ""
+
+
+@dataclass(frozen=True)
+class Gap:
+    """One declared gap, as the test design states it.
+
+    A gap is a written decision, not a mention. An entry without a reason
+    declares nothing, which is what stops a pasted requirement ID from turning
+    an untested rule into an accepted one.
+    """
+
+    id: str
+    title: str
+    requirements: tuple[str, ...]
+    coverage: str
+    reason: str
+    guarded_by: str = ""
+
+    @property
+    def declares_no_coverage(self) -> bool:
+        """True when this entry claims the requirements have no tests at all."""
+        return self.coverage == COVERAGE_NONE
+
+    @property
+    def problems(self) -> list[str]:
+        """Everything structurally wrong with this entry."""
+        faults = []
+        if self.coverage not in (COVERAGE_NONE, COVERAGE_PARTIAL):
+            faults.append(f"{self.id}: coverage is {self.coverage!r}")
+        if len(self.reason) < MINIMUM_REASON:
+            faults.append(f"{self.id}: the reason is too short to be a reason")
+        if not self.title.strip():
+            faults.append(f"{self.id}: no title")
+        return faults
 
 
 @dataclass(frozen=True)
@@ -178,24 +218,88 @@ def requirement_ids(requirements: Path | None = None) -> tuple[str, ...]:
     return tuple(dict.fromkeys(REQ_ID.findall(text)))
 
 
+def _field(block: str, label: str) -> str:
+    """One `**Label:** value` field of a gap entry, joined across wrapped lines."""
+    lines = block.splitlines()
+    for index, line in enumerate(lines):
+        if not line.startswith(f"**{label}:**"):
+            continue
+        value = [line[len(label) + 5 :].strip()]
+        for continuation in lines[index + 1 :]:
+            if not continuation.strip() or FIELD.match(continuation):
+                break
+            value.append(continuation.strip())
+        return " ".join(value).strip()
+    return ""
+
+
+def gap_entries(test_design: Path | None = None) -> tuple[Gap, ...]:
+    """Every declared gap, parsed from the entries and from nothing else.
+
+    Text under the heading that is not inside an entry is prose. It declares
+    nothing, whichever requirement IDs it happens to contain. That is what stops
+    a pasted ID from converting an untested requirement into an accepted one.
+    """
+    text = (TEST_DESIGN if test_design is None else test_design).read_text(encoding="utf-8")
+    if GAPS_HEADING not in text:
+        return ()
+    end = (
+        text.index(OPEN_QUESTIONS_HEADING) if OPEN_QUESTIONS_HEADING in text else len(text)
+    )
+    section = text[text.index(GAPS_HEADING) : end]
+
+    entries = []
+    matches = list(GAP_ENTRY.finditer(section))
+    for index, match in enumerate(matches):
+        stop = matches[index + 1].start() if index + 1 < len(matches) else len(section)
+        block = section[match.end() : stop]
+        entries.append(
+            Gap(
+                id=match.group(1),
+                title=match.group(2).strip(),
+                requirements=tuple(
+                    dict.fromkeys(REQ_ID.findall(_field(block, "Requirements")))
+                ),
+                coverage=_field(block, "Coverage").lower(),
+                reason=" ".join(_field(block, "Reason").split()),
+                guarded_by=_field(block, "Guarded by"),
+            )
+        )
+    return tuple(entries)
+
+
 def stated_gaps(test_design: Path | None = None) -> tuple[str, ...]:
-    """Requirement IDs named in the stated gaps section of the test design."""
-    text = (TEST_DESIGN if test_design is None else test_design).read_text(encoding="utf-8")
-    start = text.index(GAPS_HEADING)
-    end = text.index(OPEN_QUESTIONS_HEADING)
-    return tuple(dict.fromkeys(REQ_ID.findall(text[start:end])))
+    """Requirement IDs declared as a gap by a well formed entry."""
+    declared: dict[str, None] = {}
+    for gap in gap_entries(test_design):
+        if gap.problems:
+            continue
+        for requirement in gap.requirements:
+            declared[requirement] = None
+    return tuple(declared)
 
 
-def gap_notes(test_design: Path | None = None) -> tuple[str, ...]:
-    """The stated gaps as prose, one paragraph per gap, for publication."""
+def open_questions(test_design: Path | None = None) -> tuple[tuple[str, str], ...]:
+    """The open questions, as (headline, body) pairs, for publication.
+
+    Published rather than left in the file, because a question only visible to
+    whoever opens the repository is not flagged, it is filed.
+    """
     text = (TEST_DESIGN if test_design is None else test_design).read_text(encoding="utf-8")
-    section = text[text.index(GAPS_HEADING) : text.index(OPEN_QUESTIONS_HEADING)]
-    paragraphs = [
-        " ".join(block.split())
-        for block in section.split("\n\n")
-        if block.strip().startswith("**")
-    ]
-    return tuple(paragraphs)
+    if OPEN_QUESTIONS_HEADING not in text:
+        return ()
+    section = text[text.index(OPEN_QUESTIONS_HEADING) :]
+    questions = []
+    for block in section.split("\n\n"):
+        stripped = block.strip()
+        if not stripped.startswith("**"):
+            continue
+        joined = " ".join(stripped.split())
+        closing = joined.find("**", 2)
+        headline = joined[2:closing].strip() if closing > 0 else joined
+        body = joined[closing + 2 :].strip() if closing > 0 else ""
+        questions.append((headline, body))
+    return tuple(questions)
 
 
 def rows(

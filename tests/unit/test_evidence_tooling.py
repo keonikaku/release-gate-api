@@ -13,7 +13,17 @@ from datetime import UTC, datetime
 
 import pytest
 
-from tools import evidence, readout, results, risk, runs, traceability
+from tools import (
+    build_site,
+    evidence,
+    provenance,
+    readout,
+    render,
+    results,
+    risk,
+    runs,
+    traceability,
+)
 
 JUNIT = """<?xml version="1.0" encoding="utf-8"?>
 <testsuites>
@@ -475,17 +485,68 @@ def test_layer_counts_are_written_cases_not_instances():
     assert sum(counts.values()) == len(traceability.test_cases())
 
 
-def test_gap_notes_are_read_from_the_test_design():
-    """The published gaps are the paragraphs from the document, not a copy.
+def test_gaps_are_read_from_the_test_design(tmp_path):
+    """The published gaps are the entries from the document, not a copy.
 
     Layer: unit
     Covers: none
     Why this layer: if the site restated the gaps in its own words they could
-    drift from the document that the build gate reads.
+    drift from the document the build gate reads.
     """
-    notes = traceability.gap_notes()
-    assert notes
-    assert any("REQ-3" in note for note in notes)
+    entries = traceability.gap_entries()
+    assert entries
+    assert any("REQ-3" in gap.requirements for gap in entries)
+    assert all(gap.reason for gap in entries)
+
+
+def test_a_requirement_id_in_loose_prose_declares_nothing(tmp_path):
+    """Pasting an ID under the gaps heading does not make it a declared gap.
+
+    Layer: unit
+    Covers: none
+    Why this layer: this is the silent absorption path. It was one line of text
+    wide, and the parser is the only place it can be closed.
+    """
+    design = tmp_path / "test-design.md"
+    design.write_text(
+        "## Stated gaps\n\nREQ-9.9 is fine, honestly.\n\n## Open questions\n",
+        encoding="utf-8",
+    )
+    assert traceability.gap_entries(design) == ()
+    assert traceability.stated_gaps(design) == ()
+
+
+def test_a_gap_entry_without_a_reason_declares_nothing(tmp_path):
+    """An entry that states no reason is not a declaration.
+
+    Layer: unit
+    Covers: none
+    Why this layer: the cost of declaring a gap is writing down why, and the
+    parser is what charges it.
+    """
+    design = tmp_path / "test-design.md"
+    design.write_text(
+        "## Stated gaps\n\n### GAP-1: no reason given\n\n"
+        "**Requirements:** REQ-9.9\n**Coverage:** none\n**Reason:** because\n\n"
+        "## Open questions\n",
+        encoding="utf-8",
+    )
+    entry = traceability.gap_entries(design)[0]
+    assert entry.problems
+    assert traceability.stated_gaps(design) == ()
+
+
+def test_open_questions_are_published_as_headline_and_body():
+    """Every open question is readable outside the repository.
+
+    Layer: unit
+    Covers: none
+    Why this layer: a question that only appears in a file nobody opens is filed
+    rather than flagged, and the parser is what puts it on the page.
+    """
+    questions = traceability.open_questions()
+    assert questions
+    assert all(headline and body for headline, body in questions)
 
 
 def test_the_readout_json_names_every_criterion(tmp_path):
@@ -564,3 +625,174 @@ def test_missing_ratings_file_is_no_ratings(tmp_path):
     """
     assert risk.parse(tmp_path / "nothing.md") == ()
     assert risk.recorded(tmp_path / "nothing.md") == {}
+
+
+# Provenance and fabrication --------------------------------------------------
+
+
+def test_a_commit_no_machine_wrote_stops_the_publish():
+    """A human commit on the evidence branch is an offender.
+
+    Layer: unit
+    Covers: none
+    Why this layer: the check is a pure function over a git log, and the
+    published claim about who writes the ledger rests entirely on it.
+    """
+    log = (
+        "aaa|41898282+github-actions[bot]@users.noreply.github.com|Publish evidence\n"
+        "bbb|someone@example.com|Fix a number by hand\n"
+    )
+    offenders = provenance.offenders(provenance.parse_log(log))
+    assert [commit.sha for commit in offenders] == ["bbb"]
+
+
+def test_the_bootstrap_commit_is_allowed_by_sha_not_by_pattern():
+    """The one human commit is allow listed individually.
+
+    Layer: unit
+    Covers: none
+    Why this layer: an exception written as a pattern would widen to cover every
+    future human commit, which is exactly what the check exists to catch.
+    """
+    bootstrap = next(iter(provenance.BOOTSTRAP_COMMITS))
+    allowed = provenance.Commit(bootstrap, "keonikaku@gmail.com", "Create the branch")
+    other = provenance.Commit("deadbee", "keonikaku@gmail.com", "Another one")
+    assert allowed.allowed is True
+    assert other.allowed is False
+
+
+def test_a_ledger_row_naming_an_unknown_run_is_caught():
+    """A fabricated row carries a run ID GitHub has no record of.
+
+    Layer: unit
+    Covers: none
+    Why this layer: the run number check only catches a number that goes
+    backwards. A high fabricated number passes it, and the run ID is the field
+    that cannot be invented.
+    """
+
+    def numbered(run_number: int, run_id: str) -> runs.RunRow:
+        return runs.RunRow(
+            run_number=run_number,
+            run_id=run_id,
+            commit_sha="a" * 40,
+            branch="main",
+            started_at="2026-07-30T01:15:02+00:00",
+            result=runs.RESULT_PASS,
+            total=1,
+            passed=1,
+            failed=0,
+            skipped=0,
+            duration_seconds=0.1,
+            promoted_version="",
+        )
+
+    real = [numbered(10, "30500000010"), numbered(11, "30500000011")]
+    known = {"30500000010", "30500000011"}
+    assert runs.unknown_run_ids(real, known) == []
+
+    fabricated = [*real, numbered(999, "99999999999")]
+    assert runs.unknown_run_ids(fabricated, known) == ["99999999999"]
+
+
+def test_rows_older_than_the_window_are_not_called_fabricated():
+    """A run that has aged out of GitHub's list is not treated as invented.
+
+    Layer: unit
+    Covers: none
+    Why this layer: the failure mode of the check above is accusing an old
+    honest row, which would fail every publish forever.
+    """
+    old = runs.RunRow(
+        run_number=1,
+        run_id="1",
+        commit_sha="a" * 40,
+        branch="main",
+        started_at="2026-07-30T01:15:02+00:00",
+        result=runs.RESULT_PASS,
+        total=1,
+        passed=1,
+        failed=0,
+        skipped=0,
+        duration_seconds=0.1,
+        promoted_version="",
+    )
+    assert runs.unknown_run_ids([old], {"500", "501"}) == []
+
+
+# Published prose -------------------------------------------------------------
+
+
+def test_inline_markdown_renders_rather_than_printing_the_markers():
+    """Bold and code from the documents become HTML, not literal asterisks.
+
+    Layer: unit
+    Covers: none
+    Why this layer: the gaps are published verbatim from the test design so they
+    cannot drift from it, which means the renderer is the only place the markup
+    can be handled.
+    """
+    out = render.inline_markdown("**REQ-1.7 is partial.** See `app/rules.py`.")
+    assert "<strong>REQ-1.7 is partial.</strong>" in out
+    assert "<code>app/rules.py</code>" in out
+    assert "**" not in out
+
+
+def test_inline_markdown_escapes_before_it_renders():
+    """Markup in a document cannot inject HTML into a page.
+
+    Layer: unit
+    Covers: none
+    Why this layer: the input is a file anyone editing the repository can
+    change, so escaping order is a property worth pinning.
+    """
+    out = render.inline_markdown("<script>alert(1)</script> **bold**")
+    assert "<script>" not in out
+    assert "&lt;script&gt;" in out
+    assert "<strong>bold</strong>" in out
+
+
+def test_a_job_still_running_is_not_reported_as_not_run():
+    """An in flight job renders as in progress.
+
+    Layer: unit
+    Covers: none
+    Why this layer: the publish job generates the page while it is running, so
+    it can never carry its own conclusion. Reporting that as "not run"
+    contradicted GitHub's record of the same run.
+    """
+    assert "in progress" in render.outcome_pill(None, "in_progress")
+    assert "not run" in render.outcome_pill(None, "")
+    assert "success" in render.outcome_pill("success", "completed")
+
+
+def test_a_single_run_is_not_published_as_a_pass_rate():
+    """One run does not become "100% passed".
+
+    Layer: unit
+    Covers: none
+    Why this layer: a percentage standing in for a sample of one reads as a
+    claim about reliability and is not one.
+    """
+    assert "too few runs" in build_site.pass_rate_line([row(1)])
+    assert "%" not in build_site.pass_rate_line([row(1)])
+    many = [row(n) for n in range(1, 7)]
+    assert "%" in build_site.pass_rate_line(many)
+
+
+def test_both_pages_count_requirement_status_the_same_way():
+    """The dashboard and the traceability page read one function.
+
+    Layer: unit
+    Covers: none
+    Why this layer: the two pages disagreed once, and a shared counter is what
+    stops them disagreeing again.
+    """
+    rows_in = (
+        traceability.RequirementRow(requirement="REQ-3.1", cases=(), gap=True),
+        traceability.RequirementRow(requirement="REQ-9.9", cases=(), gap=False),
+    )
+    counts = build_site.status_counts(rows_in)
+    assert counts["DECLARED GAP"] == 1
+    assert counts["NOT COVERED"] == 1
+    assert sum(counts.values()) == len(rows_in)
