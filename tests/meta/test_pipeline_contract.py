@@ -127,6 +127,23 @@ def test_generated_output_is_not_committed(directory):
     assert tracked == "", f"{directory} is tracked: {tracked}"
 
 
+def test_the_workflow_still_names_the_step_the_demo_page_describes():
+    """The smoke step keeps the name three published claims are about.
+
+    Layer: meta
+    Covers: none
+    Why this layer: the demo page asserts that the suite passed and this
+    specific step failed, and it decides whether to say so by matching the step
+    name in GitHub's record. If the workflow renames the step, the page would
+    quietly stop making a true claim rather than making a false one, which is
+    safe but silent. This fails the build instead, so the rename and the page
+    are corrected together.
+    """
+    from tools.build_site import SMOKE_STEP  # noqa: PLC0415 - only needed here
+
+    assert f"name: {SMOKE_STEP}" in POST_MERGE
+
+
 def test_the_pages_render_without_leaking_markdown(tmp_path):
     """No page publishes literal bold markers or backticks in its prose.
 

@@ -856,7 +856,28 @@ def test_the_step_summary_says_where_a_job_failed():
     assert "failed at" in summary
 
     green = {"steps": [{"name": "Lint", "conclusion": "success"}]}
-    assert build_site.step_summary(green) == "1 steps, all passed"
+    assert build_site.step_summary(green) == "1 step, all passed"
+
+    two = {"steps": [{"name": "Lint", "conclusion": "success"}] * 2}
+    assert build_site.step_summary(two) == "2 steps, all passed"
+
+
+def test_skipped_steps_are_left_out_of_the_count():
+    """A step that never ran is not counted as one the job did.
+
+    Layer: unit
+    Covers: none
+    Why this layer: the count reads lower than the row count in GitHub's own
+    view, which is a deliberate convention the page states, so it is pinned
+    rather than left to look like an off by one.
+    """
+    job = {
+        "steps": [
+            {"name": "Lint", "conclusion": "success"},
+            {"name": "Export", "conclusion": "skipped"},
+        ]
+    }
+    assert build_site.step_summary(job) == "1 step, all passed"
 
 
 def test_a_failed_run_with_a_green_suite_is_explained():
@@ -888,6 +909,64 @@ def test_a_failed_run_with_a_green_suite_is_explained():
     assert build_site.green_suite_but_failed_note([row(1)]) == ""
 
 
+def blocked_run(steps: list[dict], run_id: str = "30518441807") -> dict:
+    """A post-merge run on main whose verify job failed at the given steps."""
+    return {
+        "databaseId": int(run_id),
+        "headBranch": "main",
+        "jobs": [
+            {"name": "Verify main", "conclusion": "failure", "steps": steps},
+            {"name": "Promote to production", "conclusion": "skipped", "steps": []},
+        ],
+    }
+
+
+def ledger_row(run_id: str, passed: int, total: int) -> runs.RunRow:
+    """A ledger row for a failed run with the given case counts."""
+    return runs.RunRow(
+        run_number=6,
+        run_id=run_id,
+        commit_sha="a" * 40,
+        branch="main",
+        started_at="2026-07-30T03:00:00+00:00",
+        result=runs.RESULT_FAIL,
+        total=total,
+        passed=passed,
+        failed=total - passed,
+        skipped=0,
+        duration_seconds=1.0,
+        promoted_version="",
+    )
+
+
+def inputs_with(ledger: list[runs.RunRow], gh_runs: list[dict]) -> object:
+    """Site inputs carrying only what these cases read."""
+    return build_site.Inputs(
+        rows=(),
+        cases=(),
+        run_results=None,
+        ledger=ledger,
+        captured=[],
+        openapi=None,
+        gh_runs=gh_runs,
+        production=None,
+        open_blockers=None,
+        sha="a" * 40,
+        run_id="1",
+        generated_at=datetime.now(UTC),
+    )
+
+
+SMOKE_FAILED = [
+    {"name": "Full suite", "conclusion": "success"},
+    {"name": build_site.SMOKE_STEP, "conclusion": "failure"},
+]
+SUITE_FAILED = [
+    {"name": "Full suite", "conclusion": "failure"},
+    {"name": build_site.SMOKE_STEP, "conclusion": "skipped"},
+]
+
+
 def test_the_note_reports_the_case_count_from_the_ledger():
     """The number in the prose comes from the run, never from the page.
 
@@ -896,67 +975,71 @@ def test_the_note_reports_the_case_count_from_the_ledger():
     Why this layer: "no number on this site is typed in" is a claim the site
     makes about itself, and this note is prose with a number in it.
     """
-    blocked = {"databaseId": 30518441807, "jobs": [VERIFY_JOB]}
-    ledger = [
-        runs.RunRow(
-            run_number=6,
-            run_id="30518441807",
-            commit_sha="a" * 40,
-            branch="main",
-            started_at="2026-07-30T03:00:00+00:00",
-            result=runs.RESULT_FAIL,
-            total=201,
-            passed=201,
-            failed=0,
-            skipped=0,
-            duration_seconds=1.0,
-            promoted_version="",
-        )
-    ]
-    data = build_site.Inputs(
-        rows=(),
-        cases=(),
-        run_results=None,
-        ledger=ledger,
-        captured=[],
-        openapi=None,
-        gh_runs=[blocked],
-        production=None,
-        open_blockers=None,
-        sha="a" * 40,
-        run_id="1",
-        generated_at=datetime.now(UTC),
-    )
-    note = build_site.suite_passed_note(data, blocked)
+    blocked = blocked_run(SMOKE_FAILED)
+    data = inputs_with([ledger_row("30518441807", 201, 201)], [blocked])
+    note = build_site.suite_passed_note(build_site.smoke_only_failure(data, blocked))
     assert "All 201 of 201 cases were green" in note
-    assert "Smoke the freshly built instance" in note
-
-    data_without_ledger = build_site.Inputs(**{**data.__dict__, "ledger": []})
-    assert "The suite was green" in build_site.suite_passed_note(
-        data_without_ledger, blocked
-    )
+    assert build_site.SMOKE_STEP in note
 
 
-def test_the_branch_condition_is_ruled_out_from_the_same_run():
-    """If the publish job ran, the ref check passed on that run.
+def test_the_narrative_does_not_render_when_a_real_test_failed():
+    """A run where the suite went red gets no paragraph saying it passed.
 
     Layer: unit
     Covers: none
-    Why this layer: publish carries the same `github.ref` condition as promote,
-    so its success is a disproof of the objection that the ref check is what
-    skipped promotion. The sentence only appears when the record supports it.
+    Why this layer: this is the failure this predicate exists to prevent. The
+    old check asked whether something failed rather than what, so a future run
+    with a red suite would have published a confident paragraph asserting the
+    opposite of the truth, and the fallback wording made it read as derived.
     """
-    with_publish = {
-        "jobs": [
-            VERIFY_JOB,
-            {"name": "Publish the evidence", "conclusion": "success", "steps": []},
-            {"name": "Promote to production", "conclusion": "skipped", "steps": []},
-        ]
-    }
-    proof = build_site.ref_condition_proof(with_publish)
-    assert "identical" in proof
-    assert "github.ref" in proof
+    blocked = blocked_run(SUITE_FAILED)
+    data = inputs_with([ledger_row("30518441807", 180, 201)], [blocked])
+    assert build_site.smoke_only_failure(data, blocked) is None
+    assert build_site.suite_passed_note(None) == ""
+    assert build_site.smoke_claim_rows(None) == ""
 
-    without_publish = {"jobs": [VERIFY_JOB]}
-    assert build_site.ref_condition_proof(without_publish) == ""
-    assert build_site.ref_condition_proof(None) == ""
+
+def test_the_narrative_does_not_render_without_a_ledger_row():
+    """No recorded counts means no claim about the counts.
+
+    Layer: unit
+    Covers: none
+    Why this layer: the paragraph asserts every case passed, and without the
+    row there is nothing that says so. Degrading to vaguer wording was the
+    mistake: it kept the assertion and dropped the evidence.
+    """
+    blocked = blocked_run(SMOKE_FAILED)
+    assert build_site.smoke_only_failure(inputs_with([], [blocked]), blocked) is None
+
+
+def test_the_narrative_does_not_render_when_cases_failed():
+    """A ledger row showing failures contradicts the paragraph.
+
+    Layer: unit
+    Covers: none
+    Why this layer: the smoke step can fail in a run where cases failed too, and
+    the paragraph is only true when every case passed.
+    """
+    blocked = blocked_run(SMOKE_FAILED)
+    data = inputs_with([ledger_row("30518441807", 200, 201)], [blocked])
+    assert build_site.smoke_only_failure(data, blocked) is None
+
+
+def test_the_claim_rows_and_the_narrative_stand_or_fall_together():
+    """One predicate decides all three claims about that run shape.
+
+    Layer: unit
+    Covers: none
+    Why this layer: they were decided separately, which is how the rows came to
+    render unconditionally while the card said the run had not happened yet.
+    """
+    blocked = blocked_run(SMOKE_FAILED)
+    data = inputs_with([ledger_row("30518441807", 201, 201)], [blocked])
+    row = build_site.smoke_only_failure(data, blocked)
+    assert row is not None
+    assert build_site.suite_passed_note(row)
+    assert build_site.smoke_claim_rows(row)
+
+    assert build_site.smoke_only_failure(inputs_with([], []), None) is None
+    assert build_site.suite_passed_note(None) == ""
+    assert build_site.smoke_claim_rows(None) == ""
