@@ -1,8 +1,8 @@
 {
-  "decision": "GO",
-  "commit_sha": "4c30517524ae9df6ae90f7d5308fc9c8f7d0d96c",
-  "generated_at": "2026-07-30T06:03:29.299982+00:00",
-  "run_id": "30518372449",
+  "decision": "NO-GO",
+  "commit_sha": "9c2ba89da83d462592d5b36d343c12078ce6c7ac",
+  "generated_at": "2026-07-30T06:04:43.867793+00:00",
+  "run_id": "30518441807",
   "criteria": [
     {
       "id": "C1",
@@ -25,8 +25,8 @@
     {
       "id": "C4",
       "statement": "Every documented endpoint is exercised, and no test points at an endpoint that is not documented.",
-      "verdict": "MET",
-      "detail": "5 endpoints, all exercised."
+      "verdict": "NOT EVALUATED",
+      "detail": "No OpenAPI document was produced by this run."
     },
     {
       "id": "C5",

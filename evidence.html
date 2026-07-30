@@ -93,7 +93,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 <h3>A refusal is described by the spec, not just returned by the code.</h3>
 <p class="dim mono">tests/contract/test_openapi_contract.py::test_rejection_body_matches_the_documented_schema</p>
 <p><span class="pill ok">passed</span> <span class="pill ">contract</span>
-<span class="pill ">captured 4c30517</span></p>
+<span class="pill ">captured 9c2ba89</span></p>
 <details class="exchange">
 <summary>GET <code>/openapi.json</code>
 &rarr; 200</summary>
@@ -265,7 +265,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;ec29b601-06f9-453e-8808-6f92dd7301d8&quot;,
+  &quot;id&quot;: &quot;9f1e98b1-f3e2-4d2f-9eaf-89bd86d6943d&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -348,7 +348,7 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/ec29b601-06f9-453e-8808-6f92dd7301d8/submit</code>
+<summary>POST <code>/changes/9f1e98b1-f3e2-4d2f-9eaf-89bd86d6943d/submit</code>
 &rarr; 400</summary>
 <div class="body">
 <div class="label">Request</div>
@@ -374,7 +374,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 <h3>The 200 body from a successful submission validates.</h3>
 <p class="dim mono">tests/contract/test_openapi_contract.py::test_submitted_change_matches_the_documented_schema</p>
 <p><span class="pill ok">passed</span> <span class="pill ">contract</span>
-<span class="pill ">captured 4c30517</span></p>
+<span class="pill ">captured 9c2ba89</span></p>
 <details class="exchange">
 <summary>GET <code>/openapi.json</code>
 &rarr; 200</summary>
@@ -546,7 +546,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;07e14f26-4e2b-4a34-89eb-ae716dde9ef8&quot;,
+  &quot;id&quot;: &quot;73a48480-c4b8-472b-bdf0-fe93a9bb1c77&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -629,14 +629,14 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/07e14f26-4e2b-4a34-89eb-ae716dde9ef8/submit</code>
+<summary>POST <code>/changes/73a48480-c4b8-472b-bdf0-fe93a9bb1c77/submit</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
 <pre>no body</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;07e14f26-4e2b-4a34-89eb-ae716dde9ef8&quot;,
+  &quot;id&quot;: &quot;73a48480-c4b8-472b-bdf0-fe93a9bb1c77&quot;,
   &quot;state&quot;: &quot;submitted&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -723,7 +723,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 <h3>A refusal is a 400 listing every violation, and the change stays in</h3>
 <p class="dim mono">tests/integration/test_change_api.py::test_a_refused_submission_names_every_rule_it_broke</p>
 <p><span class="pill ok">passed</span> <span class="pill ">integration</span>
-<span class="pill ">captured 4c30517</span></p>
+<span class="pill ">captured 9c2ba89</span></p>
 <details class="exchange">
 <summary>POST <code>/changes</code>
 &rarr; 201</summary>
@@ -792,7 +792,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;135539e9-f94d-461c-8f59-c799b0421695&quot;,
+  &quot;id&quot;: &quot;50e45a36-71f5-49ff-9e19-b3e4b0384482&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -859,7 +859,7 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/135539e9-f94d-461c-8f59-c799b0421695/submit</code>
+<summary>POST <code>/changes/50e45a36-71f5-49ff-9e19-b3e4b0384482/submit</code>
 &rarr; 400</summary>
 <div class="body">
 <div class="label">Request</div>
@@ -885,14 +885,14 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>GET <code>/changes/135539e9-f94d-461c-8f59-c799b0421695</code>
+<summary>GET <code>/changes/50e45a36-71f5-49ff-9e19-b3e4b0384482</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
 <pre>no body</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;135539e9-f94d-461c-8f59-c799b0421695&quot;,
+  &quot;id&quot;: &quot;50e45a36-71f5-49ff-9e19-b3e4b0384482&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -963,7 +963,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 <h3>A submission that passes all seven rules moves to Submitted and stays</h3>
 <p class="dim mono">tests/integration/test_change_api.py::test_a_valid_submission_is_accepted_and_persisted</p>
 <p><span class="pill ok">passed</span> <span class="pill ">integration</span>
-<span class="pill ">captured 4c30517</span></p>
+<span class="pill ">captured 9c2ba89</span></p>
 <details class="exchange">
 <summary>POST <code>/changes</code>
 &rarr; 201</summary>
@@ -1048,7 +1048,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;2710ab16-0c2a-46f4-a085-2e5a43c3fd98&quot;,
+  &quot;id&quot;: &quot;87240bbd-38cc-464c-8747-80224f6b9e84&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -1131,14 +1131,14 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/2710ab16-0c2a-46f4-a085-2e5a43c3fd98/submit</code>
+<summary>POST <code>/changes/87240bbd-38cc-464c-8747-80224f6b9e84/submit</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
 <pre>no body</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;2710ab16-0c2a-46f4-a085-2e5a43c3fd98&quot;,
+  &quot;id&quot;: &quot;87240bbd-38cc-464c-8747-80224f6b9e84&quot;,
   &quot;state&quot;: &quot;submitted&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -1221,14 +1221,14 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>GET <code>/changes/2710ab16-0c2a-46f4-a085-2e5a43c3fd98</code>
+<summary>GET <code>/changes/87240bbd-38cc-464c-8747-80224f6b9e84</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
 <pre>no body</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;2710ab16-0c2a-46f4-a085-2e5a43c3fd98&quot;,
+  &quot;id&quot;: &quot;87240bbd-38cc-464c-8747-80224f6b9e84&quot;,
   &quot;state&quot;: &quot;submitted&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -1315,7 +1315,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 <h3>Moving a draft straight to Submitted is refused, so REQ-1 cannot be</h3>
 <p class="dim mono">tests/integration/test_change_api.py::test_validation_cannot_be_stepped_around_with_a_transition</p>
 <p><span class="pill ok">passed</span> <span class="pill ">integration</span>
-<span class="pill ">captured 4c30517</span></p>
+<span class="pill ">captured 9c2ba89</span></p>
 <details class="exchange">
 <summary>POST <code>/changes</code>
 &rarr; 201</summary>
@@ -1400,7 +1400,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;509682df-003e-4d79-a77a-5585e8f3b52d&quot;,
+  &quot;id&quot;: &quot;ad187b48-fc60-410d-9b26-6b02885fdea9&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -1483,7 +1483,7 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/509682df-003e-4d79-a77a-5585e8f3b52d/transition</code>
+<summary>POST <code>/changes/ad187b48-fc60-410d-9b26-6b02885fdea9/transition</code>
 &rarr; 409</summary>
 <div class="body">
 <div class="label">Request</div>
@@ -1503,14 +1503,14 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>GET <code>/changes/509682df-003e-4d79-a77a-5585e8f3b52d</code>
+<summary>GET <code>/changes/ad187b48-fc60-410d-9b26-6b02885fdea9</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
 <pre>no body</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;509682df-003e-4d79-a77a-5585e8f3b52d&quot;,
+  &quot;id&quot;: &quot;ad187b48-fc60-410d-9b26-6b02885fdea9&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -1597,7 +1597,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 <h3>REQ-1.2 through the API. There is no exemption from BAT.</h3>
 <p class="dim mono">tests/integration/test_change_api.py::test_a_change_missing_bat_evidence_is_refused</p>
 <p><span class="pill ok">passed</span> <span class="pill ">integration</span>
-<span class="pill ">captured 4c30517</span></p>
+<span class="pill ">captured 9c2ba89</span></p>
 <details class="exchange">
 <summary>POST <code>/changes</code>
 &rarr; 201</summary>
@@ -1677,7 +1677,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;35e5b139-a5af-4baa-9b9c-222831a86827&quot;,
+  &quot;id&quot;: &quot;75d0c0bd-87b6-4bfc-a13f-d574f2bfcc49&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -1755,7 +1755,7 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/35e5b139-a5af-4baa-9b9c-222831a86827/submit</code>
+<summary>POST <code>/changes/75d0c0bd-87b6-4bfc-a13f-d574f2bfcc49/submit</code>
 &rarr; 400</summary>
 <div class="body">
 <div class="label">Request</div>
@@ -1777,7 +1777,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 <h3>The SPA row of the on call matrix, exercised through the API.</h3>
 <p class="dim mono">tests/integration/test_change_api.py::test_a_spa_release_without_prod_support_is_accepted</p>
 <p><span class="pill ok">passed</span> <span class="pill ">integration</span>
-<span class="pill ">captured 4c30517</span></p>
+<span class="pill ">captured 9c2ba89</span></p>
 <details class="exchange">
 <summary>POST <code>/changes</code>
 &rarr; 201</summary>
@@ -1844,7 +1844,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;862e4701-60b7-46d0-a679-ed420acf705d&quot;,
+  &quot;id&quot;: &quot;36b839a9-eba5-48bd-9bac-17bc4d89a192&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -1909,14 +1909,14 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/862e4701-60b7-46d0-a679-ed420acf705d/submit</code>
+<summary>POST <code>/changes/36b839a9-eba5-48bd-9bac-17bc4d89a192/submit</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
 <pre>no body</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;862e4701-60b7-46d0-a679-ed420acf705d&quot;,
+  &quot;id&quot;: &quot;36b839a9-eba5-48bd-9bac-17bc4d89a192&quot;,
   &quot;state&quot;: &quot;submitted&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -1985,7 +1985,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 <h3>The 201 body validates against the declared ChangeRecord schema.</h3>
 <p class="dim mono">tests/contract/test_openapi_contract.py::test_created_change_matches_the_documented_schema</p>
 <p><span class="pill ok">passed</span> <span class="pill ">contract</span>
-<span class="pill ">captured 4c30517</span></p>
+<span class="pill ">captured 9c2ba89</span></p>
 <details class="exchange">
 <summary>GET <code>/openapi.json</code>
 &rarr; 200</summary>
@@ -2157,7 +2157,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;5f898aa6-ed85-49b2-a8fd-9517ba3da5a4&quot;,
+  &quot;id&quot;: &quot;cd2b679c-d3f7-4505-a2c0-610fedb13767&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -2244,7 +2244,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 <h3>A 409 carries the rule, both states and the legal alternatives, exactly</h3>
 <p class="dim mono">tests/contract/test_openapi_contract.py::test_illegal_transition_body_matches_the_documented_schema</p>
 <p><span class="pill ok">passed</span> <span class="pill ">contract</span>
-<span class="pill ">captured 4c30517</span></p>
+<span class="pill ">captured 9c2ba89</span></p>
 <details class="exchange">
 <summary>GET <code>/openapi.json</code>
 &rarr; 200</summary>
@@ -2416,7 +2416,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;981838a0-1d01-4352-99fb-f24e1df4da51&quot;,
+  &quot;id&quot;: &quot;853fb454-cff2-48b1-a176-d6e2a1444a98&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -2499,7 +2499,7 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/981838a0-1d01-4352-99fb-f24e1df4da51/transition</code>
+<summary>POST <code>/changes/853fb454-cff2-48b1-a176-d6e2a1444a98/transition</code>
 &rarr; 409</summary>
 <div class="body">
 <div class="label">Request</div>
@@ -2524,7 +2524,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 <h3>The 200 body from a read validates against the declared schema.</h3>
 <p class="dim mono">tests/contract/test_openapi_contract.py::test_read_change_matches_the_documented_schema</p>
 <p><span class="pill ok">passed</span> <span class="pill ">contract</span>
-<span class="pill ">captured 4c30517</span></p>
+<span class="pill ">captured 9c2ba89</span></p>
 <details class="exchange">
 <summary>GET <code>/openapi.json</code>
 &rarr; 200</summary>
@@ -2696,7 +2696,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;1d43e077-f030-497f-916c-0cd89d34ade8&quot;,
+  &quot;id&quot;: &quot;190935f1-0de5-4a3e-ab14-032bbe09cde1&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -2779,14 +2779,14 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>GET <code>/changes/1d43e077-f030-497f-916c-0cd89d34ade8</code>
+<summary>GET <code>/changes/190935f1-0de5-4a3e-ab14-032bbe09cde1</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
 <pre>no body</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;1d43e077-f030-497f-916c-0cd89d34ade8&quot;,
+  &quot;id&quot;: &quot;190935f1-0de5-4a3e-ab14-032bbe09cde1&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -2873,7 +2873,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 <h3>The 200 body from a successful submission validates.</h3>
 <p class="dim mono">tests/contract/test_openapi_contract.py::test_submitted_change_matches_the_documented_schema</p>
 <p><span class="pill ok">passed</span> <span class="pill ">contract</span>
-<span class="pill ">captured 4c30517</span></p>
+<span class="pill ">captured 9c2ba89</span></p>
 <details class="exchange">
 <summary>GET <code>/openapi.json</code>
 &rarr; 200</summary>
@@ -3045,7 +3045,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;07e14f26-4e2b-4a34-89eb-ae716dde9ef8&quot;,
+  &quot;id&quot;: &quot;73a48480-c4b8-472b-bdf0-fe93a9bb1c77&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -3128,14 +3128,14 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/07e14f26-4e2b-4a34-89eb-ae716dde9ef8/submit</code>
+<summary>POST <code>/changes/73a48480-c4b8-472b-bdf0-fe93a9bb1c77/submit</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
 <pre>no body</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;07e14f26-4e2b-4a34-89eb-ae716dde9ef8&quot;,
+  &quot;id&quot;: &quot;73a48480-c4b8-472b-bdf0-fe93a9bb1c77&quot;,
   &quot;state&quot;: &quot;submitted&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -3222,7 +3222,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 <h3>What was written is what is read.</h3>
 <p class="dim mono">tests/integration/test_change_api.py::test_a_change_can_be_read_back</p>
 <p><span class="pill ok">passed</span> <span class="pill ">integration</span>
-<span class="pill ">captured 4c30517</span></p>
+<span class="pill ">captured 9c2ba89</span></p>
 <details class="exchange">
 <summary>POST <code>/changes</code>
 &rarr; 201</summary>
@@ -3307,7 +3307,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;87122d6f-92ad-46a7-8dc5-c04c47d99e50&quot;,
+  &quot;id&quot;: &quot;32e225ca-5532-4376-b601-c68071aef153&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -3390,14 +3390,14 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>GET <code>/changes/87122d6f-92ad-46a7-8dc5-c04c47d99e50</code>
+<summary>GET <code>/changes/32e225ca-5532-4376-b601-c68071aef153</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
 <pre>no body</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;87122d6f-92ad-46a7-8dc5-c04c47d99e50&quot;,
+  &quot;id&quot;: &quot;32e225ca-5532-4376-b601-c68071aef153&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -3484,7 +3484,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 <h3>Submitting an already submitted change is a 409.</h3>
 <p class="dim mono">tests/integration/test_change_api.py::test_a_change_cannot_be_submitted_twice</p>
 <p><span class="pill ok">passed</span> <span class="pill ">integration</span>
-<span class="pill ">captured 4c30517</span></p>
+<span class="pill ">captured 9c2ba89</span></p>
 <details class="exchange">
 <summary>POST <code>/changes</code>
 &rarr; 201</summary>
@@ -3569,7 +3569,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;13f133ef-5f86-445a-998f-b86d92010698&quot;,
+  &quot;id&quot;: &quot;511cfd3d-e5cc-4872-ba49-e9b06ee3f44f&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -3652,14 +3652,14 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/13f133ef-5f86-445a-998f-b86d92010698/submit</code>
+<summary>POST <code>/changes/511cfd3d-e5cc-4872-ba49-e9b06ee3f44f/submit</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
 <pre>no body</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;13f133ef-5f86-445a-998f-b86d92010698&quot;,
+  &quot;id&quot;: &quot;511cfd3d-e5cc-4872-ba49-e9b06ee3f44f&quot;,
   &quot;state&quot;: &quot;submitted&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -3742,7 +3742,7 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/13f133ef-5f86-445a-998f-b86d92010698/submit</code>
+<summary>POST <code>/changes/511cfd3d-e5cc-4872-ba49-e9b06ee3f44f/submit</code>
 &rarr; 409</summary>
 <div class="body">
 <div class="label">Request</div>
@@ -3765,7 +3765,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 <h3>Creating a change records it in Draft with the injected timestamp.</h3>
 <p class="dim mono">tests/integration/test_change_api.py::test_a_new_change_is_created_in_draft</p>
 <p><span class="pill ok">passed</span> <span class="pill ">integration</span>
-<span class="pill ">captured 4c30517</span></p>
+<span class="pill ">captured 9c2ba89</span></p>
 <details class="exchange">
 <summary>POST <code>/changes</code>
 &rarr; 201</summary>
@@ -3850,7 +3850,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;4f191a72-a7f4-4aab-b781-d8af58583746&quot;,
+  &quot;id&quot;: &quot;6475b960-65b7-4072-a95c-eab8899f5694&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -3937,7 +3937,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 <h3>A submission that passes all seven rules moves to Submitted and stays</h3>
 <p class="dim mono">tests/integration/test_change_api.py::test_a_valid_submission_is_accepted_and_persisted</p>
 <p><span class="pill ok">passed</span> <span class="pill ">integration</span>
-<span class="pill ">captured 4c30517</span></p>
+<span class="pill ">captured 9c2ba89</span></p>
 <details class="exchange">
 <summary>POST <code>/changes</code>
 &rarr; 201</summary>
@@ -4022,7 +4022,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;2710ab16-0c2a-46f4-a085-2e5a43c3fd98&quot;,
+  &quot;id&quot;: &quot;87240bbd-38cc-464c-8747-80224f6b9e84&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -4105,14 +4105,14 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/2710ab16-0c2a-46f4-a085-2e5a43c3fd98/submit</code>
+<summary>POST <code>/changes/87240bbd-38cc-464c-8747-80224f6b9e84/submit</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
 <pre>no body</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;2710ab16-0c2a-46f4-a085-2e5a43c3fd98&quot;,
+  &quot;id&quot;: &quot;87240bbd-38cc-464c-8747-80224f6b9e84&quot;,
   &quot;state&quot;: &quot;submitted&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -4195,14 +4195,14 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>GET <code>/changes/2710ab16-0c2a-46f4-a085-2e5a43c3fd98</code>
+<summary>GET <code>/changes/87240bbd-38cc-464c-8747-80224f6b9e84</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
 <pre>no body</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;2710ab16-0c2a-46f4-a085-2e5a43c3fd98&quot;,
+  &quot;id&quot;: &quot;87240bbd-38cc-464c-8747-80224f6b9e84&quot;,
   &quot;state&quot;: &quot;submitted&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -4289,7 +4289,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 <h3>Draft to Closed through every legal state, one request at a time.</h3>
 <p class="dim mono">tests/integration/test_change_api.py::test_the_lifecycle_can_be_walked_end_to_end</p>
 <p><span class="pill ok">passed</span> <span class="pill ">integration</span>
-<span class="pill ">captured 4c30517</span></p>
+<span class="pill ">captured 9c2ba89</span></p>
 <details class="exchange">
 <summary>POST <code>/changes</code>
 &rarr; 201</summary>
@@ -4374,7 +4374,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;ba120c86-ca1d-4a9d-b3ed-e52615d64373&quot;,
+  &quot;id&quot;: &quot;62e1fc1c-8116-43a0-9234-dfaa923a042a&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -4457,14 +4457,14 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/ba120c86-ca1d-4a9d-b3ed-e52615d64373/submit</code>
+<summary>POST <code>/changes/62e1fc1c-8116-43a0-9234-dfaa923a042a/submit</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
 <pre>no body</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;ba120c86-ca1d-4a9d-b3ed-e52615d64373&quot;,
+  &quot;id&quot;: &quot;62e1fc1c-8116-43a0-9234-dfaa923a042a&quot;,
   &quot;state&quot;: &quot;submitted&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -4547,7 +4547,7 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/ba120c86-ca1d-4a9d-b3ed-e52615d64373/transition</code>
+<summary>POST <code>/changes/62e1fc1c-8116-43a0-9234-dfaa923a042a/transition</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
@@ -4556,7 +4556,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;ba120c86-ca1d-4a9d-b3ed-e52615d64373&quot;,
+  &quot;id&quot;: &quot;62e1fc1c-8116-43a0-9234-dfaa923a042a&quot;,
   &quot;state&quot;: &quot;approved&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -4639,7 +4639,7 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/ba120c86-ca1d-4a9d-b3ed-e52615d64373/transition</code>
+<summary>POST <code>/changes/62e1fc1c-8116-43a0-9234-dfaa923a042a/transition</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
@@ -4648,7 +4648,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;ba120c86-ca1d-4a9d-b3ed-e52615d64373&quot;,
+  &quot;id&quot;: &quot;62e1fc1c-8116-43a0-9234-dfaa923a042a&quot;,
   &quot;state&quot;: &quot;scheduled&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -4731,7 +4731,7 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/ba120c86-ca1d-4a9d-b3ed-e52615d64373/transition</code>
+<summary>POST <code>/changes/62e1fc1c-8116-43a0-9234-dfaa923a042a/transition</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
@@ -4740,7 +4740,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;ba120c86-ca1d-4a9d-b3ed-e52615d64373&quot;,
+  &quot;id&quot;: &quot;62e1fc1c-8116-43a0-9234-dfaa923a042a&quot;,
   &quot;state&quot;: &quot;implementing&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -4823,7 +4823,7 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/ba120c86-ca1d-4a9d-b3ed-e52615d64373/transition</code>
+<summary>POST <code>/changes/62e1fc1c-8116-43a0-9234-dfaa923a042a/transition</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
@@ -4832,7 +4832,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;ba120c86-ca1d-4a9d-b3ed-e52615d64373&quot;,
+  &quot;id&quot;: &quot;62e1fc1c-8116-43a0-9234-dfaa923a042a&quot;,
   &quot;state&quot;: &quot;verified&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -4915,7 +4915,7 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/ba120c86-ca1d-4a9d-b3ed-e52615d64373/transition</code>
+<summary>POST <code>/changes/62e1fc1c-8116-43a0-9234-dfaa923a042a/transition</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
@@ -4924,7 +4924,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;ba120c86-ca1d-4a9d-b3ed-e52615d64373&quot;,
+  &quot;id&quot;: &quot;62e1fc1c-8116-43a0-9234-dfaa923a042a&quot;,
   &quot;state&quot;: &quot;closed&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -5011,7 +5011,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 <h3>Two changes created in the same instance advance independently.</h3>
 <p class="dim mono">tests/integration/test_change_api.py::test_two_changes_do_not_share_state</p>
 <p><span class="pill ok">passed</span> <span class="pill ">integration</span>
-<span class="pill ">captured 4c30517</span></p>
+<span class="pill ">captured 9c2ba89</span></p>
 <details class="exchange">
 <summary>POST <code>/changes</code>
 &rarr; 201</summary>
@@ -5096,7 +5096,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;360cf00e-3c18-4b57-9ac1-a4f56cf7263e&quot;,
+  &quot;id&quot;: &quot;446d4423-6c65-4452-8cdd-2968f823cacb&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -5262,7 +5262,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;570156b5-5c96-4fcf-96f8-442f525193f5&quot;,
+  &quot;id&quot;: &quot;aed34ad6-7cf0-4889-bd0d-aabf9054d00b&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -5345,14 +5345,14 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/360cf00e-3c18-4b57-9ac1-a4f56cf7263e/submit</code>
+<summary>POST <code>/changes/446d4423-6c65-4452-8cdd-2968f823cacb/submit</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
 <pre>no body</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;360cf00e-3c18-4b57-9ac1-a4f56cf7263e&quot;,
+  &quot;id&quot;: &quot;446d4423-6c65-4452-8cdd-2968f823cacb&quot;,
   &quot;state&quot;: &quot;submitted&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -5435,14 +5435,14 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>GET <code>/changes/360cf00e-3c18-4b57-9ac1-a4f56cf7263e</code>
+<summary>GET <code>/changes/446d4423-6c65-4452-8cdd-2968f823cacb</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
 <pre>no body</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;360cf00e-3c18-4b57-9ac1-a4f56cf7263e&quot;,
+  &quot;id&quot;: &quot;446d4423-6c65-4452-8cdd-2968f823cacb&quot;,
   &quot;state&quot;: &quot;submitted&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -5525,14 +5525,14 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>GET <code>/changes/570156b5-5c96-4fcf-96f8-442f525193f5</code>
+<summary>GET <code>/changes/aed34ad6-7cf0-4889-bd0d-aabf9054d00b</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
 <pre>no body</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;570156b5-5c96-4fcf-96f8-442f525193f5&quot;,
+  &quot;id&quot;: &quot;aed34ad6-7cf0-4889-bd0d-aabf9054d00b&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -5619,7 +5619,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 <h3>Moving a draft straight to Submitted is refused, so REQ-1 cannot be</h3>
 <p class="dim mono">tests/integration/test_change_api.py::test_validation_cannot_be_stepped_around_with_a_transition</p>
 <p><span class="pill ok">passed</span> <span class="pill ">integration</span>
-<span class="pill ">captured 4c30517</span></p>
+<span class="pill ">captured 9c2ba89</span></p>
 <details class="exchange">
 <summary>POST <code>/changes</code>
 &rarr; 201</summary>
@@ -5704,7 +5704,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;509682df-003e-4d79-a77a-5585e8f3b52d&quot;,
+  &quot;id&quot;: &quot;ad187b48-fc60-410d-9b26-6b02885fdea9&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -5787,7 +5787,7 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/509682df-003e-4d79-a77a-5585e8f3b52d/transition</code>
+<summary>POST <code>/changes/ad187b48-fc60-410d-9b26-6b02885fdea9/transition</code>
 &rarr; 409</summary>
 <div class="body">
 <div class="label">Request</div>
@@ -5807,14 +5807,14 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>GET <code>/changes/509682df-003e-4d79-a77a-5585e8f3b52d</code>
+<summary>GET <code>/changes/ad187b48-fc60-410d-9b26-6b02885fdea9</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
 <pre>no body</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;509682df-003e-4d79-a77a-5585e8f3b52d&quot;,
+  &quot;id&quot;: &quot;ad187b48-fc60-410d-9b26-6b02885fdea9&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -5901,7 +5901,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 <h3>A scheduled change can still be cancelled.</h3>
 <p class="dim mono">tests/integration/test_change_api.py::test_a_change_can_be_cancelled_before_implementing</p>
 <p><span class="pill ok">passed</span> <span class="pill ">integration</span>
-<span class="pill ">captured 4c30517</span></p>
+<span class="pill ">captured 9c2ba89</span></p>
 <details class="exchange">
 <summary>POST <code>/changes</code>
 &rarr; 201</summary>
@@ -5986,7 +5986,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;2bbb8d3c-cf8e-4b46-98e4-4064df8a12b0&quot;,
+  &quot;id&quot;: &quot;f5221a80-6c09-475f-973b-fa2e9352eb95&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -6069,14 +6069,14 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/2bbb8d3c-cf8e-4b46-98e4-4064df8a12b0/submit</code>
+<summary>POST <code>/changes/f5221a80-6c09-475f-973b-fa2e9352eb95/submit</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
 <pre>no body</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;2bbb8d3c-cf8e-4b46-98e4-4064df8a12b0&quot;,
+  &quot;id&quot;: &quot;f5221a80-6c09-475f-973b-fa2e9352eb95&quot;,
   &quot;state&quot;: &quot;submitted&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -6159,7 +6159,7 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/2bbb8d3c-cf8e-4b46-98e4-4064df8a12b0/transition</code>
+<summary>POST <code>/changes/f5221a80-6c09-475f-973b-fa2e9352eb95/transition</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
@@ -6168,7 +6168,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;2bbb8d3c-cf8e-4b46-98e4-4064df8a12b0&quot;,
+  &quot;id&quot;: &quot;f5221a80-6c09-475f-973b-fa2e9352eb95&quot;,
   &quot;state&quot;: &quot;approved&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -6251,7 +6251,7 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/2bbb8d3c-cf8e-4b46-98e4-4064df8a12b0/transition</code>
+<summary>POST <code>/changes/f5221a80-6c09-475f-973b-fa2e9352eb95/transition</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
@@ -6260,7 +6260,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;2bbb8d3c-cf8e-4b46-98e4-4064df8a12b0&quot;,
+  &quot;id&quot;: &quot;f5221a80-6c09-475f-973b-fa2e9352eb95&quot;,
   &quot;state&quot;: &quot;scheduled&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -6343,7 +6343,7 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/2bbb8d3c-cf8e-4b46-98e4-4064df8a12b0/transition</code>
+<summary>POST <code>/changes/f5221a80-6c09-475f-973b-fa2e9352eb95/transition</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
@@ -6352,7 +6352,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;2bbb8d3c-cf8e-4b46-98e4-4064df8a12b0&quot;,
+  &quot;id&quot;: &quot;f5221a80-6c09-475f-973b-fa2e9352eb95&quot;,
   &quot;state&quot;: &quot;cancelled&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -6435,14 +6435,14 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>GET <code>/changes/2bbb8d3c-cf8e-4b46-98e4-4064df8a12b0</code>
+<summary>GET <code>/changes/f5221a80-6c09-475f-973b-fa2e9352eb95</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
 <pre>no body</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;2bbb8d3c-cf8e-4b46-98e4-4064df8a12b0&quot;,
+  &quot;id&quot;: &quot;f5221a80-6c09-475f-973b-fa2e9352eb95&quot;,
   &quot;state&quot;: &quot;cancelled&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -6529,7 +6529,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 <h3>Cancelling during implementation is a 409 naming REQ-2.1.</h3>
 <p class="dim mono">tests/integration/test_change_api.py::test_a_change_cannot_be_cancelled_once_implementing</p>
 <p><span class="pill ok">passed</span> <span class="pill ">integration</span>
-<span class="pill ">captured 4c30517</span></p>
+<span class="pill ">captured 9c2ba89</span></p>
 <details class="exchange">
 <summary>POST <code>/changes</code>
 &rarr; 201</summary>
@@ -6614,7 +6614,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;e0eadcb2-840a-4e6c-935f-d1cfd2e6e14b&quot;,
+  &quot;id&quot;: &quot;c1e3b755-e31b-4683-8bc5-a341474644d4&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -6697,14 +6697,14 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/e0eadcb2-840a-4e6c-935f-d1cfd2e6e14b/submit</code>
+<summary>POST <code>/changes/c1e3b755-e31b-4683-8bc5-a341474644d4/submit</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
 <pre>no body</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;e0eadcb2-840a-4e6c-935f-d1cfd2e6e14b&quot;,
+  &quot;id&quot;: &quot;c1e3b755-e31b-4683-8bc5-a341474644d4&quot;,
   &quot;state&quot;: &quot;submitted&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -6787,7 +6787,7 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/e0eadcb2-840a-4e6c-935f-d1cfd2e6e14b/transition</code>
+<summary>POST <code>/changes/c1e3b755-e31b-4683-8bc5-a341474644d4/transition</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
@@ -6796,7 +6796,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;e0eadcb2-840a-4e6c-935f-d1cfd2e6e14b&quot;,
+  &quot;id&quot;: &quot;c1e3b755-e31b-4683-8bc5-a341474644d4&quot;,
   &quot;state&quot;: &quot;approved&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -6879,7 +6879,7 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/e0eadcb2-840a-4e6c-935f-d1cfd2e6e14b/transition</code>
+<summary>POST <code>/changes/c1e3b755-e31b-4683-8bc5-a341474644d4/transition</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
@@ -6888,7 +6888,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;e0eadcb2-840a-4e6c-935f-d1cfd2e6e14b&quot;,
+  &quot;id&quot;: &quot;c1e3b755-e31b-4683-8bc5-a341474644d4&quot;,
   &quot;state&quot;: &quot;scheduled&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -6971,7 +6971,7 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/e0eadcb2-840a-4e6c-935f-d1cfd2e6e14b/transition</code>
+<summary>POST <code>/changes/c1e3b755-e31b-4683-8bc5-a341474644d4/transition</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
@@ -6980,7 +6980,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;e0eadcb2-840a-4e6c-935f-d1cfd2e6e14b&quot;,
+  &quot;id&quot;: &quot;c1e3b755-e31b-4683-8bc5-a341474644d4&quot;,
   &quot;state&quot;: &quot;implementing&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -7063,7 +7063,7 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/e0eadcb2-840a-4e6c-935f-d1cfd2e6e14b/transition</code>
+<summary>POST <code>/changes/c1e3b755-e31b-4683-8bc5-a341474644d4/transition</code>
 &rarr; 409</summary>
 <div class="body">
 <div class="label">Request</div>
@@ -7088,7 +7088,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 <h3>REQ-2.2 through HTTP, with the refusing rule in the body.</h3>
 <p class="dim mono">tests/integration/test_change_api.py::test_an_implementing_change_cannot_return_to_approved</p>
 <p><span class="pill ok">passed</span> <span class="pill ">integration</span>
-<span class="pill ">captured 4c30517</span></p>
+<span class="pill ">captured 9c2ba89</span></p>
 <details class="exchange">
 <summary>POST <code>/changes</code>
 &rarr; 201</summary>
@@ -7173,7 +7173,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;8eb5a3fe-3739-4679-90f9-8e61e20c170d&quot;,
+  &quot;id&quot;: &quot;807f1cf5-379b-4998-a0c9-cd5d22158139&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -7256,14 +7256,14 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/8eb5a3fe-3739-4679-90f9-8e61e20c170d/submit</code>
+<summary>POST <code>/changes/807f1cf5-379b-4998-a0c9-cd5d22158139/submit</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
 <pre>no body</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;8eb5a3fe-3739-4679-90f9-8e61e20c170d&quot;,
+  &quot;id&quot;: &quot;807f1cf5-379b-4998-a0c9-cd5d22158139&quot;,
   &quot;state&quot;: &quot;submitted&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -7346,7 +7346,7 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/8eb5a3fe-3739-4679-90f9-8e61e20c170d/transition</code>
+<summary>POST <code>/changes/807f1cf5-379b-4998-a0c9-cd5d22158139/transition</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
@@ -7355,7 +7355,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;8eb5a3fe-3739-4679-90f9-8e61e20c170d&quot;,
+  &quot;id&quot;: &quot;807f1cf5-379b-4998-a0c9-cd5d22158139&quot;,
   &quot;state&quot;: &quot;approved&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -7438,7 +7438,7 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/8eb5a3fe-3739-4679-90f9-8e61e20c170d/transition</code>
+<summary>POST <code>/changes/807f1cf5-379b-4998-a0c9-cd5d22158139/transition</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
@@ -7447,7 +7447,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;8eb5a3fe-3739-4679-90f9-8e61e20c170d&quot;,
+  &quot;id&quot;: &quot;807f1cf5-379b-4998-a0c9-cd5d22158139&quot;,
   &quot;state&quot;: &quot;scheduled&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -7530,7 +7530,7 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/8eb5a3fe-3739-4679-90f9-8e61e20c170d/transition</code>
+<summary>POST <code>/changes/807f1cf5-379b-4998-a0c9-cd5d22158139/transition</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
@@ -7539,7 +7539,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;8eb5a3fe-3739-4679-90f9-8e61e20c170d&quot;,
+  &quot;id&quot;: &quot;807f1cf5-379b-4998-a0c9-cd5d22158139&quot;,
   &quot;state&quot;: &quot;implementing&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -7622,7 +7622,7 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/8eb5a3fe-3739-4679-90f9-8e61e20c170d/transition</code>
+<summary>POST <code>/changes/807f1cf5-379b-4998-a0c9-cd5d22158139/transition</code>
 &rarr; 409</summary>
 <div class="body">
 <div class="label">Request</div>
@@ -7647,7 +7647,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 <h3>REQ-2.3 through HTTP: Implementing to Closed is refused, Implementing to</h3>
 <p class="dim mono">tests/integration/test_change_api.py::test_failed_verification_cannot_close_without_rolling_back</p>
 <p><span class="pill ok">passed</span> <span class="pill ">integration</span>
-<span class="pill ">captured 4c30517</span></p>
+<span class="pill ">captured 9c2ba89</span></p>
 <details class="exchange">
 <summary>POST <code>/changes</code>
 &rarr; 201</summary>
@@ -7732,7 +7732,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;46495bc7-adeb-41cb-a36c-ac3889e75903&quot;,
+  &quot;id&quot;: &quot;d3bc0f8b-0acf-4ff4-be02-e4d660f87a7e&quot;,
   &quot;state&quot;: &quot;draft&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -7815,14 +7815,14 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/46495bc7-adeb-41cb-a36c-ac3889e75903/submit</code>
+<summary>POST <code>/changes/d3bc0f8b-0acf-4ff4-be02-e4d660f87a7e/submit</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
 <pre>no body</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;46495bc7-adeb-41cb-a36c-ac3889e75903&quot;,
+  &quot;id&quot;: &quot;d3bc0f8b-0acf-4ff4-be02-e4d660f87a7e&quot;,
   &quot;state&quot;: &quot;submitted&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -7905,7 +7905,7 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/46495bc7-adeb-41cb-a36c-ac3889e75903/transition</code>
+<summary>POST <code>/changes/d3bc0f8b-0acf-4ff4-be02-e4d660f87a7e/transition</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
@@ -7914,7 +7914,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;46495bc7-adeb-41cb-a36c-ac3889e75903&quot;,
+  &quot;id&quot;: &quot;d3bc0f8b-0acf-4ff4-be02-e4d660f87a7e&quot;,
   &quot;state&quot;: &quot;approved&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -7997,7 +7997,7 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/46495bc7-adeb-41cb-a36c-ac3889e75903/transition</code>
+<summary>POST <code>/changes/d3bc0f8b-0acf-4ff4-be02-e4d660f87a7e/transition</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
@@ -8006,7 +8006,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;46495bc7-adeb-41cb-a36c-ac3889e75903&quot;,
+  &quot;id&quot;: &quot;d3bc0f8b-0acf-4ff4-be02-e4d660f87a7e&quot;,
   &quot;state&quot;: &quot;scheduled&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -8089,7 +8089,7 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/46495bc7-adeb-41cb-a36c-ac3889e75903/transition</code>
+<summary>POST <code>/changes/d3bc0f8b-0acf-4ff4-be02-e4d660f87a7e/transition</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
@@ -8098,7 +8098,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;46495bc7-adeb-41cb-a36c-ac3889e75903&quot;,
+  &quot;id&quot;: &quot;d3bc0f8b-0acf-4ff4-be02-e4d660f87a7e&quot;,
   &quot;state&quot;: &quot;implementing&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -8181,7 +8181,7 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/46495bc7-adeb-41cb-a36c-ac3889e75903/transition</code>
+<summary>POST <code>/changes/d3bc0f8b-0acf-4ff4-be02-e4d660f87a7e/transition</code>
 &rarr; 409</summary>
 <div class="body">
 <div class="label">Request</div>
@@ -8202,7 +8202,7 @@ asserts, whether it passed, and the commit it ran against.</p>
   }
 }</pre>
 </div></details><details class="exchange">
-<summary>POST <code>/changes/46495bc7-adeb-41cb-a36c-ac3889e75903/transition</code>
+<summary>POST <code>/changes/d3bc0f8b-0acf-4ff4-be02-e4d660f87a7e/transition</code>
 &rarr; 200</summary>
 <div class="body">
 <div class="label">Request</div>
@@ -8211,7 +8211,7 @@ asserts, whether it passed, and the commit it ran against.</p>
 }</pre>
 <div class="label">Response</div>
 <pre>{
-  &quot;id&quot;: &quot;46495bc7-adeb-41cb-a36c-ac3889e75903&quot;,
+  &quot;id&quot;: &quot;d3bc0f8b-0acf-4ff4-be02-e4d660f87a7e&quot;,
   &quot;state&quot;: &quot;rolled_back&quot;,
   &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
   &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
@@ -8301,7 +8301,7 @@ Every page here is generated by the post-merge workflow from the artifacts of a
 real run. No number on this site is typed in. The sentences that explain what
 you are looking at are written by a person; every figure, result, timestamp and
 link beside them comes from the run.
-Built from commit <code>4c30517</code> at <time class="ts" datetime="2026-07-30T06:03:29.299982+00:00">29 Jul 2026, 20:03 HST</time>.
+Built from commit <code>9c2ba89</code> at <time class="ts" datetime="2026-07-30T06:04:43.867793+00:00">29 Jul 2026, 20:04 HST</time>.
 <br>
 <a href="https://github.com/keonikaku/release-gate-api">Repository</a> &middot;
 <a href="https://github.com/keonikaku/release-gate-api/actions/workflows/post-merge.yml">Run history</a>
