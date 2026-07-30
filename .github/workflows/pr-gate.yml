@@ -1,0 +1,90 @@
+name: PR gate
+
+# One question: is this change safe to land.
+#
+# Everything here is a pure function of the commit. The service under test is in
+# this repository, nothing calls a third party, and no browser or database
+# server is involved. Red means the code is wrong, and it never means anything
+# else.
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: Gate (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # Two versions, because "it works on my machine" is the claim this
+        # repository exists to disprove.
+        python-version: ["3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      # Proves the clean clone install story in the README actually resolves,
+      # on a machine that is not the author's.
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Format
+        run: ruff format --check .
+
+      - name: Unit and contract layers
+        run: pytest -m "unit or contract"
+
+      - name: Integration layer
+        run: pytest -m integration
+
+      - name: Meta layer (traceability, endpoint coverage, prose guards)
+        run: pytest -m meta
+
+      - name: Collection integrity
+        run: |
+          set -euo pipefail
+
+          count() { pytest --collect-only -q "$@" | grep -c '::' || true; }
+
+          total=$(count)
+          unit=$(count -m unit)
+          contract=$(count -m contract)
+          integration=$(count -m integration)
+          meta=$(count -m meta)
+
+          echo "total=$total unit=$unit contract=$contract integration=$integration meta=$meta"
+
+          # Every collected test carries exactly one layer marker. A test that
+          # arrives unmarked would be counted in no layer and reported in none.
+          [ "$total" -eq "$((unit + contract + integration + meta))" ] || {
+            echo "unmarked or double marked tests detected"; exit 1; }
+
+          # The pyramid, asserted rather than drawn.
+          [ "$unit" -gt "$integration" ] || {
+            echo "the unit layer is no longer the widest"; exit 1; }
+
+          [ "$total" -ge 40 ] || { echo "the suite has shrunk to $total"; exit 1; }

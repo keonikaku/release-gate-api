@@ -1,0 +1,9 @@
+# Runtime dependencies for the service. Pinned so a clean clone resolves to the
+# versions this suite was proven against.
+#
+#     pip install -r requirements.txt
+#     uvicorn app.main:app
+#
+fastapi==0.121.2
+pydantic==2.13.0
+uvicorn[standard]==0.40.0

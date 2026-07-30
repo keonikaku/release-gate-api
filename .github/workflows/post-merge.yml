@@ -1,0 +1,144 @@
+name: Post-merge
+
+# Two questions, in order, and they are not the same question.
+#
+#   verify   is main shippable right now?
+#   promote  does this version go to production?
+#
+# REQ-3 is enforced here rather than in the service. `promote` carries
+# `needs: verify`, so when verification fails GitHub skips promotion, the
+# previously promoted release stays the current one, and production does not get
+# the change (REQ-3.1, REQ-3.2, REQ-3.3). The block is GitHub's own record. It
+# is not narrated anywhere and it cannot be narrated away.
+#
+# The badge published on the portfolio is this workflow, not the PR gate. A
+# pre-merge badge says the last pull request passed. This one says main is
+# shippable now, which is the claim worth making, and it is only safe to make
+# because the service under test is in this repository.
+
+on:
+  push:
+    # `ci/**` is here so the whole workflow, including the promotion block, can
+    # be exercised on a branch. Verification can be made to fail there
+    # deliberately without touching the badge, which is pinned to `main`.
+    branches: [main, "ci/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Never cancel a run in flight: a cancelled promotion would leave the record
+  # of what is in production ambiguous.
+  group: post-merge-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify main
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Full suite
+        run: pytest --junitxml=reports/junit.xml
+
+      # The suite above drives the application in process. This step builds a
+      # fresh instance, serves it over real HTTP on a database that did not
+      # exist a moment ago, and drives it as a client would. A service that only
+      # works when imported is not a service.
+      - name: Smoke the freshly built instance
+        run: |
+          set -euo pipefail
+          mkdir -p reports
+          RELEASE_GATE_DB=$RUNNER_TEMP/verify.db \
+            python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 \
+            > reports/service.log 2>&1 &
+          echo $! > reports/service.pid
+          for _ in $(seq 1 40); do
+            if curl -sf http://127.0.0.1:8000/healthz > /dev/null; then break; fi
+            sleep 0.5
+          done
+          python tools/smoke.py http://127.0.0.1:8000
+          kill "$(cat reports/service.pid)"
+
+      - name: Export the OpenAPI document
+        run: python tools/export_openapi.py reports/openapi.json
+
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-evidence-${{ github.run_number }}
+          path: reports/
+          if-no-files-found: warn
+
+  promote:
+    name: Promote to production
+    needs: verify
+    # Two conditions, and they are not redundant. `needs: verify` is the release
+    # gate: no promotion without a green suite (REQ-3). The ref check is the
+    # blast radius: only `main` can ever be promoted, so a run on a `ci/**`
+    # branch exercises verification and stops there.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    # Promotion is the only job that writes anything outside the run. It tags a
+    # release, and that tag is what "currently in production" means in a project
+    # with no hosting: the newest promoted tag, and nothing else.
+    permissions:
+      contents: write
+
+    environment:
+      name: production
+      url: ${{ github.server_url }}/${{ github.repository }}/releases
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Record what is being promoted
+        id: version
+        run: |
+          set -euo pipefail
+          version="v0.1.${{ github.run_number }}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Promoted to production"
+            echo ""
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Version | $version |"
+            echo "| Commit | ${{ github.sha }} |"
+            echo "| Verified by | run ${{ github.run_id }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Tag the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "${{ steps.version.outputs.version }}" \
+            --target "${{ github.sha }}" \
+            --title "${{ steps.version.outputs.version }}" \
+            --notes "Promoted by run ${{ github.run_id }} after the full suite passed on ${{ github.sha }}."
