@@ -1,0 +1,769 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Release Gate API",
+    "summary": "Decides whether a proposed change may proceed to production.",
+    "description": "The gate validates a submission against the rules in REQ-1 and enforces the lifecycle in REQ-2. Rejections are machine readable: every violation carries the requirement ID that refused it.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/healthz": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Healthz",
+        "description": "Liveness, and the version this instance is running.",
+        "operationId": "healthz_healthz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/changes": {
+      "post": {
+        "tags": [
+          "changes"
+        ],
+        "summary": "Create Change",
+        "description": "Record a change in Draft. No rules run here.\n\nDrafting is not submitting. The gate evaluates REQ-1 when the change is\nsubmitted, which is what makes a rejection a decision about a submission\nrather than a schema error.",
+        "operationId": "create_change_changes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeSubmission"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/changes/{change_id}": {
+      "get": {
+        "tags": [
+          "changes"
+        ],
+        "summary": "Read Change",
+        "description": "Read one change record.",
+        "operationId": "read_change_changes__change_id__get",
+        "parameters": [
+          {
+            "name": "change_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Change Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeRecord"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such change.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/changes/{change_id}/submit": {
+      "post": {
+        "tags": [
+          "changes"
+        ],
+        "summary": "Submit Change",
+        "description": "Run REQ-1 against the change and move it to Submitted if it passes.\n\nA refusal is a 400 carrying every violation, not the first one. A change\nthat is not in Draft cannot be submitted, and that is a 409 from REQ-2.",
+        "operationId": "submit_change_changes__change_id__submit_post",
+        "parameters": [
+          {
+            "name": "change_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Change Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeRecord"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such change.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The gate refused the submission (REQ-1).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RejectionResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The change is not in Draft (REQ-2).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransitionErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/changes/{change_id}/transition": {
+      "post": {
+        "tags": [
+          "changes"
+        ],
+        "summary": "Transition Change",
+        "description": "Move a change along the lifecycle (REQ-2).\n\nDraft to Submitted is not available here: it goes through `/submit`, so the\nvalidation cannot be stepped around.",
+        "operationId": "transition_change_changes__change_id__transition_post",
+        "parameters": [
+          {
+            "name": "change_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Change Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransitionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeRecord"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such change.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The move is not on the lifecycle graph (REQ-2).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransitionErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ChangeRecord": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "state": {
+            "$ref": "#/components/schemas/State"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "submission": {
+            "$ref": "#/components/schemas/ChangeSubmission"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "state",
+          "created_at",
+          "updated_at",
+          "submission"
+        ],
+        "title": "ChangeRecord",
+        "description": "A stored change request and its current state."
+      },
+      "ChangeSubmission": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "release_type": {
+            "$ref": "#/components/schemas/ReleaseType"
+          },
+          "scrum_team": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Scrum Team"
+          },
+          "submitter": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Submitter"
+          },
+          "fix_version": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Fix Version"
+          },
+          "implementation_start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Implementation Start"
+          },
+          "implementation_end": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Implementation End"
+          },
+          "rollback_plan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rollback Plan"
+          },
+          "jira_ticket": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jira Ticket"
+          },
+          "test_evidence": {
+            "items": {
+              "$ref": "#/components/schemas/TestEvidence"
+            },
+            "type": "array",
+            "title": "Test Evidence"
+          },
+          "merge_requests": {
+            "items": {
+              "$ref": "#/components/schemas/MergeRequestRecord"
+            },
+            "type": "array",
+            "title": "Merge Requests"
+          },
+          "on_call": {
+            "items": {
+              "$ref": "#/components/schemas/OnCallAssignment"
+            },
+            "type": "array",
+            "title": "On Call"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title",
+          "release_type",
+          "scrum_team",
+          "submitter",
+          "fix_version",
+          "implementation_start",
+          "implementation_end"
+        ],
+        "title": "ChangeSubmission",
+        "description": "The payload a submitter sends.\n\nFields whose absence is itself a rule violation are optional here on\npurpose. If `rollback_plan` were required by the schema, REQ-1.1 could never\nbe reached and the rule would be untestable through the API."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Health": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "version"
+        ],
+        "title": "Health",
+        "description": "Liveness plus the version the instance is running."
+      },
+      "MergeRequestRecord": {
+        "properties": {
+          "stage": {
+            "$ref": "#/components/schemas/PromotionStage"
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Url"
+          },
+          "merged_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Merged At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "stage",
+          "url",
+          "merged_at"
+        ],
+        "title": "MergeRequestRecord",
+        "description": "A merge request raised at one stage of the promotion path (REQ-1.5)."
+      },
+      "NotFoundDetail": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "default": "not_found"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "NotFoundDetail",
+        "description": "Body of a 404."
+      },
+      "NotFoundResponse": {
+        "properties": {
+          "detail": {
+            "$ref": "#/components/schemas/NotFoundDetail"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "detail"
+        ],
+        "title": "NotFoundResponse",
+        "description": "The 404 envelope."
+      },
+      "OnCallAssignment": {
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "window_start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Window Start"
+          },
+          "window_end": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Window End"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "role",
+          "name",
+          "window_start",
+          "window_end"
+        ],
+        "title": "OnCallAssignment",
+        "description": "A named person covering a role for a window of time (REQ-1.6)."
+      },
+      "PromotionStage": {
+        "type": "string",
+        "enum": [
+          "reg_sit",
+          "int",
+          "bat"
+        ],
+        "title": "PromotionStage",
+        "description": "Stages of the promotion path (REQ-1.5a). Production is the destination,\nso it is not a stage that can be evidenced in advance."
+      },
+      "RejectionDetail": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "default": "submission_rejected"
+          },
+          "violations": {
+            "items": {
+              "$ref": "#/components/schemas/Violation"
+            },
+            "type": "array",
+            "title": "Violations"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "violations"
+        ],
+        "title": "RejectionDetail",
+        "description": "Body of a 400 when the gate refuses a submission (REQ-1)."
+      },
+      "RejectionResponse": {
+        "properties": {
+          "detail": {
+            "$ref": "#/components/schemas/RejectionDetail"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "detail"
+        ],
+        "title": "RejectionResponse",
+        "description": "The 400 envelope. Declared so the OpenAPI document describes refusals as\nwell as successes: a spec that only documents the happy path is a spec a\nconsumer cannot write error handling against."
+      },
+      "ReleaseType": {
+        "type": "string",
+        "enum": [
+          "small",
+          "sprint",
+          "monorepo",
+          "spa"
+        ],
+        "title": "ReleaseType",
+        "description": "Declared by the submitter. The gate trusts the declaration (REQ-1.6)."
+      },
+      "Role": {
+        "type": "string",
+        "enum": [
+          "dev",
+          "business",
+          "devops",
+          "prod_support",
+          "tech_lead"
+        ],
+        "title": "Role",
+        "description": "On call roles. The required set depends on release type (REQ-1.6)."
+      },
+      "State": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "submitted",
+          "approved",
+          "scheduled",
+          "implementing",
+          "verified",
+          "closed",
+          "cancelled",
+          "rolled_back"
+        ],
+        "title": "State",
+        "description": "States of a change record (REQ-2)."
+      },
+      "TestEnvironment": {
+        "type": "string",
+        "enum": [
+          "dev",
+          "qa",
+          "bat"
+        ],
+        "title": "TestEnvironment",
+        "description": "Environments that testing evidence is claimed against (REQ-1.2)."
+      },
+      "TestEvidence": {
+        "properties": {
+          "environment": {
+            "$ref": "#/components/schemas/TestEnvironment"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          },
+          "reference": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reference"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "environment",
+          "passed",
+          "reference"
+        ],
+        "title": "TestEvidence",
+        "description": "One claim of testing in one environment (REQ-1.2)."
+      },
+      "TransitionErrorDetail": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "default": "illegal_transition"
+          },
+          "rule": {
+            "type": "string",
+            "title": "Rule"
+          },
+          "from_state": {
+            "$ref": "#/components/schemas/State"
+          },
+          "to_state": {
+            "$ref": "#/components/schemas/State"
+          },
+          "allowed": {
+            "items": {
+              "$ref": "#/components/schemas/State"
+            },
+            "type": "array",
+            "title": "Allowed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "rule",
+          "from_state",
+          "to_state",
+          "allowed"
+        ],
+        "title": "TransitionErrorDetail",
+        "description": "Body of a 409 when a transition is not legal (REQ-2)."
+      },
+      "TransitionErrorResponse": {
+        "properties": {
+          "detail": {
+            "$ref": "#/components/schemas/TransitionErrorDetail"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "detail"
+        ],
+        "title": "TransitionErrorResponse",
+        "description": "The 409 envelope."
+      },
+      "TransitionRequest": {
+        "properties": {
+          "to_state": {
+            "$ref": "#/components/schemas/State"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "to_state"
+        ],
+        "title": "TransitionRequest",
+        "description": "Ask for a state change (REQ-2)."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "Violation": {
+        "properties": {
+          "rule": {
+            "type": "string",
+            "title": "Rule"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "rule",
+          "message"
+        ],
+        "title": "Violation",
+        "description": "One reason the gate refused. `rule` is the requirement ID verbatim."
+      }
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "decision": "GO",
+  "commit_sha": "4655b63f37df308f0c392039b60ae5bf7dbfd37f",
+  "generated_at": "2026-07-30T01:53:27.656810+00:00",
+  "run_id": "30506866995",
+  "criteria": [
+    {
+      "id": "C1",
+      "statement": "The full suite passes on this commit.",
+      "verdict": "MET",
+      "detail": "183 of 183 cases passed."
+    },
+    {
+      "id": "C2",
+      "statement": "No case was skipped, so a pass is the whole suite passing.",
+      "verdict": "MET",
+      "detail": "183 cases ran, none skipped."
+    },
+    {
+      "id": "C3",
+      "statement": "Every requirement has a test or a stated gap, and no test claims a requirement that does not exist.",
+      "verdict": "MET",
+      "detail": "17 requirements, all traced."
+    },
+    {
+      "id": "C4",
+      "statement": "Every documented endpoint is exercised, and no test points at an endpoint that is not documented.",
+      "verdict": "MET",
+      "detail": "5 endpoints, all exercised."
+    },
+    {
+      "id": "C5",
+      "statement": "No open issue is labelled release-blocker.",
+      "verdict": "MET",
+      "detail": "Zero open release-blocker issues."
+    }
+  ]
+}

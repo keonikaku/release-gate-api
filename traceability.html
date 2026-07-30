@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Traceability</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0e14; --bg-soft:#0d1219; --panel:#111826; --line:#232e40;
+  --line-soft:#1a2434; --txt:#eef2f7; --muted:#8b9bb0; --muted-dim:#5c6c81;
+  --accent:#4fd1ff; --green:#34d399; --red:#f87171; --amber:#fbbf24;
+  --grad:linear-gradient(120deg,#4fd1ff 0%,#7c9cff 55%,#34d399 100%);
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;
+  --radius:16px; --shadow:0 20px 50px -20px rgba(0,0,0,.55);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--sans);
+  font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px 80px}
+header.top{border-bottom:1px solid var(--line);background:var(--bg-soft);
+  position:sticky;top:0;z-index:5}
+header.top .wrap{padding:16px 24px;display:flex;gap:20px;align-items:baseline;
+  flex-wrap:wrap}
+header.top strong{font-size:15px;letter-spacing:.2px}
+nav a{color:var(--muted);font-size:13px;margin-right:16px}
+nav a.here{color:var(--txt);border-bottom:2px solid var(--accent);padding-bottom:2px}
+h1{font-size:30px;line-height:1.25;margin:36px 0 8px;letter-spacing:-.4px}
+h2{font-size:20px;margin:40px 0 10px;letter-spacing:-.2px}
+h3{font-size:15px;margin:26px 0 8px;color:var(--txt)}
+p{color:var(--muted);margin:10px 0}
+p.lede{color:var(--txt);font-size:16px;max-width:70ch}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  padding:20px 22px;box-shadow:var(--shadow)}
+.card h3{margin-top:0}
+.kpi{font-family:var(--mono);font-size:26px;letter-spacing:-.5px}
+.label{font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted-dim)}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:1px;
+  color:var(--muted-dim);border-bottom:1px solid var(--line);padding:8px 10px;
+  font-weight:600}
+td{border-bottom:1px solid var(--line-soft);padding:9px 10px;vertical-align:top;
+  color:var(--muted)}
+td.k,td strong{color:var(--txt)}
+code,.mono{font-family:var(--mono);font-size:12.5px}
+.pill{display:inline-block;font-family:var(--mono);font-size:11px;padding:2px 8px;
+  border-radius:999px;border:1px solid var(--line);white-space:nowrap}
+.ok{color:var(--green);border-color:rgba(52,211,153,.35);background:rgba(52,211,153,.08)}
+.bad{color:var(--red);border-color:rgba(248,113,113,.35);background:rgba(248,113,113,.08)}
+.warn{color:var(--amber);border-color:rgba(251,191,36,.35);background:rgba(251,191,36,.08)}
+.dim{color:var(--muted-dim)}
+.banner{border-radius:var(--radius);padding:22px 24px;border:1px solid var(--line);
+  background:var(--panel);display:flex;gap:22px;align-items:center;flex-wrap:wrap}
+.banner .verdict{font-family:var(--mono);font-size:34px;letter-spacing:-1px}
+.verdict.go{color:var(--green)} .verdict.nogo{color:var(--red)}
+pre{background:var(--bg-soft);border:1px solid var(--line);border-radius:10px;
+  padding:12px 14px;overflow:auto;font-family:var(--mono);font-size:12px;
+  color:#cfe3f5;margin:8px 0}
+.exchange{border:1px solid var(--line);border-radius:12px;margin:12px 0;overflow:hidden}
+.exchange summary{cursor:pointer;padding:12px 16px;background:var(--bg-soft);
+  font-size:13.5px;color:var(--txt)}
+.exchange .body{padding:4px 16px 16px}
+.bar{height:8px;border-radius:6px;background:var(--line-soft);overflow:hidden}
+.bar span{display:block;height:100%;background:var(--grad)}
+footer{border-top:1px solid var(--line);margin-top:56px;padding-top:20px;
+  color:var(--muted-dim);font-size:12.5px}
+.note{border-left:3px solid var(--accent);padding:2px 0 2px 14px;margin:16px 0;
+  color:var(--muted)}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+<strong>Release Gate API</strong>
+<nav><a href="index.html">Dashboard</a><a href="demo.html">The two runs</a><a href="traceability.html" class="here">Traceability</a><a href="evidence.html">Evidence</a><a href="api.html">API</a><a href="team.html">How it was built</a></nav>
+</div></header>
+<main class="wrap">
+
+<h1>Traceability</h1>
+<p class="lede">Every requirement, the cases that cover it, the endpoint they
+exercise, the layer they sit at, and what happened when they last ran. The same
+module that generates this table fails the build when a requirement has no test
+and no stated gap.</p>
+
+<div class="grid g3">
+  <div class="card"><div class="label">Covered</div>
+    <div class="kpi">12</div>
+    <p class="dim">tested, nothing declared missing</p></div>
+  <div class="card"><div class="label">Partial</div>
+    <div class="kpi">4</div>
+    <p class="dim">tested, with a declared hole</p></div>
+  <div class="card"><div class="label">Declared gap</div>
+    <div class="kpi">1</div>
+    <p class="dim">no test, and a written reason why</p></div>
+  <div class="card"><div class="label">Untraced</div>
+    <div class="kpi">0</div>
+    <p class="dim">fails the build</p></div>
+</div>
+
+<div class="note">This table is not all green on purpose. A table where every row
+is covered and nothing is missing reads as fabricated, and the build fails if the
+gaps below are ever quietly closed.</div>
+
+<table>
+<tr><th>Requirement</th><th>Status</th><th>Cases</th><th>Endpoint</th><th>Layer</th></tr>
+<tr><td class='k mono'>REQ-1</td><td><span class="pill ok">COVERED</span></td><td><code>test_submitted_change_matches_the_documented_schema</code> <span class="pill ok">passed</span><br><code>test_rejection_body_matches_the_documented_schema</code> <span class="pill ok">passed</span><br><code>test_a_valid_submission_is_accepted_and_persisted</code> <span class="pill ok">passed</span><br><code>test_a_refused_submission_names_every_rule_it_broke</code> <span class="pill ok">passed</span><br><code>test_validation_cannot_be_stepped_around_with_a_transition</code> <span class="pill ok">passed</span><br><code>test_baseline_submission_is_accepted</code> <span class="pill ok">passed</span><br><code>test_every_broken_rule_is_reported_at_once</code> <span class="pill ok">passed</span><br><code>test_violations_are_ordered_by_rule_id</code> <span class="pill ok">passed</span><br><code>test_rule_evaluation_is_deterministic</code> <span class="pill ok">passed</span><br><code>test_violations_are_machine_readable</code> <span class="pill ok">passed</span></td><td class='mono'>POST /changes/{change_id}/submit, POST /changes/{change_id}/transition</td><td class='mono'>contract, integration, unit</td></tr><tr><td class='k mono'>REQ-1.1</td><td><span class="pill ok">COVERED</span></td><td><code>test_missing_rollback_plan_is_refused</code> <span class="pill ok">passed</span></td><td class='mono'>-</td><td class='mono'>unit</td></tr><tr><td class='k mono'>REQ-1.2</td><td><span class="pill ok">COVERED</span></td><td><code>test_a_change_missing_bat_evidence_is_refused</code> <span class="pill ok">passed</span><br><code>test_test_evidence_requires_every_environment</code> <span class="pill ok">passed</span><br><code>test_failed_evidence_does_not_count_as_evidence</code> <span class="pill ok">passed</span></td><td class='mono'>POST /changes/{change_id}/submit</td><td class='mono'>integration, unit</td></tr><tr><td class='k mono'>REQ-1.3</td><td><span class="pill ok">COVERED</span></td><td><code>test_submitter_must_be_on_the_owning_team</code> <span class="pill ok">passed</span><br><code>test_membership_is_checked_against_the_supplied_roster</code> <span class="pill ok">passed</span><br><code>test_seeded_roster_is_not_empty</code> <span class="pill ok">passed</span></td><td class='mono'>-</td><td class='mono'>unit</td></tr><tr><td class='k mono'>REQ-1.4</td><td><span class="pill ok">COVERED</span></td><td><code>test_linked_jira_ticket_must_be_a_tracker_key</code> <span class="pill ok">passed</span></td><td class='mono'>-</td><td class='mono'>unit</td></tr><tr><td class='k mono'>REQ-1.5</td><td><span class="pill ok">COVERED</span></td><td><code>test_full_promotion_path_in_order_is_accepted</code> <span class="pill ok">passed</span><br><code>test_a_missing_promotion_stage_is_refused</code> <span class="pill ok">passed</span><br><code>test_a_change_missing_the_bat_stage_fails_the_promotion_path</code> <span class="pill ok">passed</span></td><td class='mono'>-</td><td class='mono'>unit</td></tr><tr><td class='k mono'>REQ-1.6</td><td><span class="pill ok">COVERED</span></td><td><code>test_a_spa_release_without_prod_support_is_accepted</code> <span class="pill ok">passed</span><br><code>test_exactly_the_required_on_call_roles_are_enough</code> <span class="pill ok">passed</span><br><code>test_spa_release_does_not_require_prod_support</code> <span class="pill ok">passed</span><br><code>test_sprint_release_does_require_prod_support</code> <span class="pill ok">passed</span><br><code>test_dropping_any_required_role_is_refused</code> <span class="pill ok">passed</span><br><code>test_on_call_window_matching_the_implementation_window_exactly_is_covered</code> <span class="pill ok">passed</span><br><code>test_on_call_window_one_second_short_is_not_coverage</code> <span class="pill ok">passed</span><br><code>test_the_required_role_must_be_named</code> <span class="pill ok">passed</span><br><code>test_on_call_matrix_covers_every_release_type</code> <span class="pill ok">passed</span></td><td class='mono'>POST /changes/{change_id}/submit</td><td class='mono'>integration, unit</td></tr><tr><td class='k mono'>REQ-1.7</td><td><span class="pill warn">PARTIAL</span></td><td><code>test_fix_version_carrying_unsettled_tickets_is_refused</code> <span class="pill ok">passed</span><br><code>test_unknown_fix_version_is_accepted</code> <span class="pill ok">passed</span><br><code>test_ticket_statuses_are_read_from_the_supplied_tracker</code> <span class="pill ok">passed</span></td><td class='mono'>-</td><td class='mono'>unit</td></tr><tr><td class='k mono'>REQ-1.5a</td><td><span class="pill ok">COVERED</span></td><td><code>test_full_promotion_path_in_order_is_accepted</code> <span class="pill ok">passed</span><br><code>test_promotion_stages_merged_out_of_order_are_refused</code> <span class="pill ok">passed</span><br><code>test_stages_merged_at_the_same_instant_are_accepted</code> <span class="pill ok">passed</span></td><td class='mono'>-</td><td class='mono'>unit</td></tr><tr><td class='k mono'>REQ-2</td><td><span class="pill ok">COVERED</span></td><td><code>test_created_change_matches_the_documented_schema</code> <span class="pill ok">passed</span><br><code>test_read_change_matches_the_documented_schema</code> <span class="pill ok">passed</span><br><code>test_submitted_change_matches_the_documented_schema</code> <span class="pill ok">passed</span><br><code>test_illegal_transition_body_matches_the_documented_schema</code> <span class="pill ok">passed</span><br><code>test_a_new_change_is_created_in_draft</code> <span class="pill ok">passed</span><br><code>test_a_change_can_be_read_back</code> <span class="pill ok">passed</span><br><code>test_a_valid_submission_is_accepted_and_persisted</code> <span class="pill ok">passed</span><br><code>test_a_change_cannot_be_submitted_twice</code> <span class="pill ok">passed</span><br><code>test_the_lifecycle_can_be_walked_end_to_end</code> <span class="pill ok">passed</span><br><code>test_validation_cannot_be_stepped_around_with_a_transition</code> <span class="pill ok">passed</span><br><code>test_two_changes_do_not_share_state</code> <span class="pill ok">passed</span><br><code>test_the_happy_path_sequence_is_legal</code> <span class="pill ok">passed</span><br><code>test_every_state_appears_in_the_graph</code> <span class="pill ok">passed</span><br><code>test_closed_and_cancelled_are_terminal</code> <span class="pill ok">passed</span><br><code>test_the_whole_matrix_agrees_with_the_table</code> <span class="pill ok">passed</span><br><code>test_a_refusal_names_the_states_it_could_have_moved_to</code> <span class="pill ok">passed</span><br><code>test_refusals_are_attributed_to_the_right_rule</code> <span class="pill ok">passed</span></td><td class='mono'>POST /changes, GET /changes/{change_id}, POST /changes/{change_id}/submit, POST /changes/{change_id}/transition</td><td class='mono'>contract, integration, unit</td></tr><tr><td class='k mono'>REQ-2.1</td><td><span class="pill ok">COVERED</span></td><td><code>test_a_change_can_be_cancelled_before_implementing</code> <span class="pill ok">passed</span><br><code>test_a_change_cannot_be_cancelled_once_implementing</code> <span class="pill ok">passed</span><br><code>test_cancellation_is_legal_before_implementing</code> <span class="pill ok">passed</span><br><code>test_cancellation_is_refused_from_implementing_onward</code> <span class="pill ok">passed</span><br><code>test_refusals_are_attributed_to_the_right_rule</code> <span class="pill ok">passed</span></td><td class='mono'>POST /changes/{change_id}/transition</td><td class='mono'>integration, unit</td></tr><tr><td class='k mono'>REQ-2.2</td><td><span class="pill ok">COVERED</span></td><td><code>test_an_implementing_change_cannot_return_to_approved</code> <span class="pill ok">passed</span><br><code>test_implementing_cannot_return_to_approved</code> <span class="pill ok">passed</span><br><code>test_refusals_are_attributed_to_the_right_rule</code> <span class="pill ok">passed</span></td><td class='mono'>POST /changes/{change_id}/transition</td><td class='mono'>integration, unit</td></tr><tr><td class='k mono'>REQ-2.3</td><td><span class="pill ok">COVERED</span></td><td><code>test_failed_verification_cannot_close_without_rolling_back</code> <span class="pill ok">passed</span><br><code>test_failed_verification_goes_to_rolled_back</code> <span class="pill ok">passed</span><br><code>test_implementing_cannot_move_straight_to_closed</code> <span class="pill ok">passed</span><br><code>test_rolled_back_can_be_closed_out</code> <span class="pill ok">passed</span><br><code>test_refusals_are_attributed_to_the_right_rule</code> <span class="pill ok">passed</span></td><td class='mono'>POST /changes/{change_id}/transition</td><td class='mono'>integration, unit</td></tr><tr><td class='k mono'>REQ-3</td><td><span class="pill warn">DECLARED GAP</span></td><td><span class='dim'>none</span></td><td class='mono'>-</td><td class='mono'>-</td></tr><tr><td class='k mono'>REQ-3.1</td><td><span class="pill warn">PARTIAL</span></td><td><code>test_promotion_depends_on_verification</code> <span class="pill ok">passed</span></td><td class='mono'>-</td><td class='mono'>meta</td></tr><tr><td class='k mono'>REQ-3.2</td><td><span class="pill warn">PARTIAL</span></td><td><code>test_promotion_depends_on_verification</code> <span class="pill ok">passed</span></td><td class='mono'>-</td><td class='mono'>meta</td></tr><tr><td class='k mono'>REQ-3.3</td><td><span class="pill warn">PARTIAL</span></td><td><code>test_promotion_can_only_happen_from_main</code> <span class="pill ok">passed</span></td><td class='mono'>-</td><td class='mono'>meta</td></tr>
+</table>
+
+<h2>On case IDs</h2>
+<p>The case ID is the name of the test function. There is no separate catalogue
+of case numbers, because a catalogue that nothing enforces drifts from the suite
+within a month. The name in the table is the name in the file, and the build
+fails if a case claims a requirement that does not exist.</p>
+
+
+
+<h2>Stated gaps</h2>
+<p>Written before the suite was built, so they are a design decision rather than
+an excuse made afterwards.</p>
+<p>**REQ-1.7 is partially covered.** The requirement says the fix version must not contain open or unresolved tickets *that could reach the branch*. The service checks the first half (tickets on the fix version that are not resolved or closed) and does not check the second half at all, because reachability is a question about version control and this service has no repository integration. Covering it would mean either building a fake that proves nothing or calling a real forge, which would make the badge depend on a third party. The traceability table records REQ-1.7 as PARTIAL rather than green.</p><p>**REQ-3 is not covered by this suite at all.** REQ-3.1, REQ-3.2 and REQ-3.3 are enforced by the pipeline, not by the service, so no pytest case can assert them. The evidence for REQ-3 is the run graph of `post-merge.yml`: `promote` carries `needs: verify`, so a failing suite leaves `promote` skipped and the previously promoted tag in place. That is GitHub&#x27;s record rather than this repository&#x27;s claim, and it is linked from the traceability table instead of a test ID.</p><p>**Concurrency is not tested.** Two submissions of the same change at the same moment could both read Draft and both write Submitted. The service is single process with one SQLite connection, so the window is small, and no requirement states an idempotency or locking rule to test against. Recorded as a known hole rather than quietly left out.</p><p>**No load, performance or security testing.** Out of scope in the requirements.</p><p>**The reference data is seeded, not integrated.** The roster and the ticket tracker are fixed tables. Tests prove the rules read them correctly. Nothing here proves the service would read a real directory or a real tracker correctly.</p><p>**Timezone handling is tested only through aware timestamps.** The schema refuses naive datetimes, which is asserted, but no case crosses a daylight saving boundary.</p>
+
+<footer>
+Every page here is generated by the post-merge workflow from the artifacts of a
+real run. Nothing on this site is written by hand.
+Built from commit <code>4655b63</code> at <time class="ts" datetime="2026-07-30T01:53:27.656810+00:00">29 Jul 2026, 15:53 HST</time>.
+<br>
+<a href="https://github.com/keonikaku/release-gate-api">Repository</a> &middot;
+<a href="https://github.com/keonikaku/release-gate-api/actions/workflows/post-merge.yml">Run history</a>
+</footer>
+</main>
+<script>
+document.querySelectorAll('time.ts').forEach(function(el){
+  var iso = el.getAttribute('datetime');
+  var when = new Date(iso);
+  if (isNaN(when)) { return; }
+  var zone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'local time';
+  var shown = when.toLocaleString(undefined, {
+    day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'
+  });
+  var seconds = (Date.now() - when.getTime()) / 1000;
+  var units = [['year',31536000],['month',2592000],['day',86400],['hour',3600],
+               ['minute',60]];
+  var ago = 'just now';
+  for (var i = 0; i < units.length; i++) {
+    var size = Math.floor(seconds / units[i][1]);
+    if (size >= 1) { ago = size + ' ' + units[i][0] + (size > 1 ? 's' : '') + ' ago'; break; }
+  }
+  el.textContent = shown + ' (' + zone + ', ' + ago + ')';
+});
+</script>
+</body>
+</html>
