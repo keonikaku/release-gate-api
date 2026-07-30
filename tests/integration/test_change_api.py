@@ -413,7 +413,7 @@ def test_the_real_store_wiring_opens_a_usable_database(tmp_path, monkeypatch):
     monkeypatch.setenv("RELEASE_GATE_DB", str(tmp_path / "wired.db"))
     monkeypatch.setattr("app.main._store", None)
     real_app.dependency_overrides.pop(get_store, None)
-    real_app.dependency_overrides[get_clock] = lambda: (lambda: PINNED_NOW)
+    real_app.dependency_overrides[get_clock] = lambda: lambda: PINNED_NOW
 
     try:
         with TestClient(real_app) as wired:
