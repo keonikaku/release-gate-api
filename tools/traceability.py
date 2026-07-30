@@ -46,6 +46,8 @@ class TestCase:
     covers: tuple[str, ...]
     endpoint: str | None = None
     reason: str = ""
+    case_id: str = ""
+    expects: int | None = None
 
 
 @dataclass(frozen=True)
@@ -141,6 +143,25 @@ def _docstring_field(doc: str, label: str, labels: tuple[str, ...]) -> str:
     return ""
 
 
+def _summary(doc: str) -> str:
+    """The opening sentence of a docstring, joined across the lines it wraps.
+
+    Taking only the first physical line cut published titles mid sentence,
+    which is a formatting accident showing up as a truncated claim.
+    """
+    lines = []
+    for line in doc.strip().splitlines():
+        if not line.strip():
+            break
+        lines.append(line.strip())
+    return " ".join(lines)
+
+
+def _as_status(value: str) -> int | None:
+    """An `Expects:` value as a status code, or None when it is not one."""
+    return int(value) if value.strip().isdigit() else None
+
+
 def _string_constants(tree: ast.Module) -> dict[str, str]:
     """Module level `NAME = "value"` assignments.
 
@@ -179,7 +200,7 @@ def _endpoint_of(node: ast.FunctionDef, constants: dict[str, str]) -> str | None
 def test_cases(tests_root: Path | None = None) -> tuple[TestCase, ...]:
     """Every test function in the suite, with what it says about itself."""
     root = TESTS_ROOT if tests_root is None else tests_root
-    labels = ("Layer", "Covers", "Why this layer")
+    labels = ("Case", "Expects", "Layer", "Covers", "Why this layer")
     cases: list[TestCase] = []
 
     for path in sorted(root.rglob("test_*.py")):
@@ -191,7 +212,7 @@ def test_cases(tests_root: Path | None = None) -> tuple[TestCase, ...]:
             if not (isinstance(node, ast.FunctionDef) and node.name.startswith("test_")):
                 continue
             doc = ast.get_docstring(node) or ""
-            summary = doc.strip().splitlines()[0] if doc.strip() else ""
+            summary = _summary(doc)
             cases.append(
                 TestCase(
                     node_id=f"{relative}::{node.name}",
@@ -205,6 +226,8 @@ def test_cases(tests_root: Path | None = None) -> tuple[TestCase, ...]:
                     ),
                     endpoint=_endpoint_of(node, constants),
                     reason=_docstring_field(doc, "Why this layer", labels),
+                    case_id=_docstring_field(doc, "Case", labels),
+                    expects=_as_status(_docstring_field(doc, "Expects", labels)),
                 )
             )
     return tuple(cases)

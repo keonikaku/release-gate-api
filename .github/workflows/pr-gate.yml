@@ -73,6 +73,7 @@ jobs:
           set -euo pipefail
           mkdir -p reports
           RELEASE_GATE_EVIDENCE=reports/evidence pytest -q --junitxml=reports/junit.xml
+          python -m tools.check_api_cases --evidence reports/evidence
           python -m tools.export_openapi reports/openapi.json
           python -m tools.build_site --reports reports --out "$RUNNER_TEMP/site" \
             --sha "${{ github.sha }}" --run-id "${{ github.run_id }}"

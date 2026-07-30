@@ -67,6 +67,12 @@ jobs:
           RELEASE_GATE_EVIDENCE: reports/evidence
         run: pytest --junitxml=reports/junit.xml
 
+      # The published case list joins each case's declared status to the status
+      # the service returned on this run. Without this the page would be
+      # publishing a docstring.
+      - name: Check the published cases against the run
+        run: python -m tools.check_api_cases --evidence reports/evidence
+
       # The suite above drives the application in process. This step builds a
       # fresh instance, serves it over real HTTP on a database that did not
       # exist a moment ago, and drives it as a client would. A service that only
