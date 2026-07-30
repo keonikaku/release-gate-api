@@ -60,6 +60,7 @@ def main() -> None:
     parser.add_argument("--result", choices=[runs.RESULT_PASS, runs.RESULT_FAIL])
     parser.add_argument("--started-at", default="")
     parser.add_argument("--production", type=Path, default=Path("reports/production.json"))
+    parser.add_argument("--known-runs", type=Path, default=Path("reports/gh-runs.json"))
     args = parser.parse_args()
 
     promoted = ""
@@ -70,6 +71,19 @@ def main() -> None:
             )
         except json.JSONDecodeError:
             promoted = ""
+
+    # Cross check what is already recorded against GitHub's own list of runs
+    # before adding to it. A fabricated row carries a run ID that no run has.
+    if args.known_runs.exists():
+        known = {
+            str(run["databaseId"])
+            for run in json.loads(args.known_runs.read_text(encoding="utf-8"))
+        }
+        unknown = runs.unknown_run_ids(runs.read_runs(args.ledger), known)
+        if unknown:
+            raise SystemExit(
+                f"ledger holds runs GitHub has no record of: {', '.join(unknown)}"
+            )
 
     row = build_row(
         junit=args.junit,

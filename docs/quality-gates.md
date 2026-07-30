@@ -25,7 +25,8 @@ admits the mechanism is a human.
 | Post-merge verification | `.github/workflows/post-merge.yml`, job `verify` | the workflow | runs after the merge |
 | Promotion | `.github/workflows/post-merge.yml`, job `promote` | `needs: verify`, so by GitHub | not applicable |
 | Evidence publishing | `.github/workflows/post-merge.yml`, job `publish` | the workflow, on `main` only | runs after every post-merge run, green or red |
-| The ledger is machine written | `tools/runs.py` and decision 0006 | the branch layout, plus a monotonic run number check | yes |
+| Evidence history cannot be rewritten | branch protection on `gh-pages` | GitHub: force pushes and deletions refused | not applicable |
+| The ledger is machine written | `tools/provenance.py`, `tools/runs.py` | the publish job, which stops if the branch carries a commit CI did not write, or if a row names a run GitHub has no record of | yes |
 | Not squash merging | repository setting | GitHub: squash and rebase merging are disabled | yes, by the platform |
 | Regression test written before its fix | convention | the person writing it | yes, by convention |
 

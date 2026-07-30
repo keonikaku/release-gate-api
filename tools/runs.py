@@ -81,6 +81,30 @@ def read_runs(path: str | Path) -> list[RunRow]:
     return rows
 
 
+def unknown_run_ids(rows: list[RunRow], known: set[str]) -> list[str]:
+    """Recorded runs that GitHub has no record of.
+
+    A run number that only increases is a weak guard: a fabricated row with a
+    high number is accepted, and it would sit on the dashboard until the next
+    real run refused to follow it. This checks the other field, which cannot be
+    invented, against an authority this repository does not control. Rows older
+    than the window GitHub returns are not checked, because absence there means
+    the run has aged out rather than that it never happened.
+    """
+    if not known:
+        return []
+    checkable = [row for row in rows if row.run_id in known or _within_window(row, known)]
+    return [row.run_id for row in checkable if row.run_id not in known]
+
+
+def _within_window(row: RunRow, known: set[str]) -> bool:
+    """True when a row is recent enough that GitHub should still list it."""
+    numbers = [int(run_id) for run_id in known if run_id.isdigit()]
+    if not numbers or not row.run_id.isdigit():
+        return False
+    return int(row.run_id) >= min(numbers)
+
+
 def validate(rows: list[RunRow]) -> list[str]:
     """Everything wrong with a ledger, or an empty list.
 
