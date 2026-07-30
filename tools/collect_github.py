@@ -51,6 +51,18 @@ def collect_runs(out: Path, limit: int = 30) -> None:
     for run in runs_data:
         jobs = gh("run", "view", str(run["databaseId"]), "--json", "jobs")
         run["jobs"] = json.loads(jobs)["jobs"] if jobs else []
+
+        # `displayTitle` is truncated by GitHub, which cut the clause explaining
+        # why a deliberate defect existed off the end of the sentence that said
+        # it was deliberate. The full subject line comes from the commit itself.
+        head = gh(
+            "api",
+            f"repos/{{owner}}/{{repo}}/commits/{run['headSha']}",
+            "--jq",
+            ".commit.message",
+        )
+        if head:
+            run["headCommitMessage"] = head.strip().splitlines()[0]
     (out / "gh-runs.json").write_text(json.dumps(runs_data, indent=2), encoding="utf-8")
     print(f"wrote {len(runs_data)} runs")
 
