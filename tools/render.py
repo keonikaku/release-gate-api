@@ -113,12 +113,15 @@ document.querySelectorAll('time.ts').forEach(function(el){
 });
 """
 
+# QA first. The release gate is the domain these tests run against, not the
+# subject of the site, and the order says so.
 NAV = (
-    ("index.html", "Dashboard"),
-    ("demo.html", "The two runs"),
+    ("index.html", "API tests"),
+    ("evidence.html", "Request and response log"),
+    ("api.html", "The API"),
+    ("pipeline.html", "Pipeline"),
+    ("demo.html", "When a build fails"),
     ("traceability.html", "Traceability"),
-    ("evidence.html", "Evidence"),
-    ("api.html", "API"),
     ("team.html", "How it was built"),
 )
 

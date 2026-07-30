@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 import pytest
 
 from tools import (
+    api_cases,
     build_site,
     evidence,
     provenance,
@@ -1043,3 +1044,114 @@ def test_the_claim_rows_and_the_narrative_stand_or_fall_together():
     assert build_site.smoke_only_failure(inputs_with([], []), None) is None
     assert build_site.suite_passed_note(None) == ""
     assert build_site.smoke_claim_rows(None) == ""
+
+
+# The published case list ------------------------------------------------------
+
+
+def api_case(case_id="API-01", expects=404, observed=404, outcome="passed"):
+    """One joined case, for the checks below."""
+    return api_cases.ApiCase(
+        case_id=case_id,
+        node_id="tests/integration/test_x.py::test_y",
+        name="test_y",
+        title="A case.",
+        layer="integration",
+        endpoint="GET /changes/{change_id}",
+        expects=expects,
+        observed=observed,
+        outcome=outcome,
+        exchanges=(
+            evidence.Exchange(
+                method="GET",
+                path="/changes/nope",
+                request_body=None,
+                status=observed,
+                response_body={"detail": {"code": "not_found"}},
+            ),
+        )
+        if observed is not None
+        else (),
+    )
+
+
+def test_a_case_whose_declared_status_is_not_what_came_back_is_a_disagreement():
+    """The page cannot publish a docstring that the run contradicts.
+
+    Layer: unit
+    Covers: none
+    Why this layer: the join is the whole basis for the case list being a
+    result rather than a description, and this is the check that makes it one.
+    """
+    assert api_cases.disagreements((api_case(),)) == []
+    wrong = api_cases.disagreements((api_case(expects=200, observed=404),))
+    assert len(wrong) == 1
+    assert "declares Expects: 200" in wrong[0]
+    assert "returned 404" in wrong[0]
+
+
+def test_a_failing_case_is_not_also_reported_as_a_disagreement():
+    """A red case is already reported as red.
+
+    Layer: unit
+    Covers: none
+    Why this layer: reporting one defect twice under two names makes a build
+    failure harder to read, not easier.
+    """
+    failing = api_case(expects=200, observed=500, outcome="failed")
+    assert api_cases.disagreements((failing,)) == []
+
+
+def test_a_case_that_did_not_run_still_appears_in_the_list():
+    """A case with no captured run is listed as not run, never dropped.
+
+    Layer: unit
+    Covers: none
+    Why this layer: a case that quietly disappears from the published list is
+    how coverage goes missing without anyone noticing.
+    """
+    absent = api_case(observed=None, outcome="not run")
+    assert absent.subject is None
+    assert api_cases.disagreements((absent,)) == []
+
+
+def test_duplicate_and_unannotated_cases_are_reported():
+    """Two cases cannot share an ID, and an ID needs an expected status.
+
+    Layer: unit
+    Covers: none
+    Why this layer: both would corrupt the published list, and neither is
+    visible from the page itself.
+    """
+    assert api_cases.duplicate_ids((api_case(), api_case())) == ["API-01"]
+    assert api_cases.missing_expectations((api_case(expects=None),)) == ["API-01"]
+
+
+def test_cases_are_grouped_in_the_documented_status_order():
+    """Created, accepted, then every way a request can be refused.
+
+    Layer: unit
+    Covers: none
+    Why this layer: the order is the argument the page makes, so it is fixed in
+    code rather than left to whatever order the cases happen to be written in.
+    """
+    grouped = api_cases.by_status(
+        (
+            api_case("API-01", expects=500, observed=500),
+            api_case("API-02", expects=201, observed=201),
+            api_case("API-03", expects=404, observed=404),
+        )
+    )
+    assert list(grouped) == [201, 404, 500]
+
+
+def test_every_status_the_page_explains_has_a_stated_meaning():
+    """No status code is published without a plain language meaning.
+
+    Layer: unit
+    Covers: none
+    Why this layer: the meanings are what make the list readable by someone who
+    does not open the repository, which is the whole point of the page.
+    """
+    assert set(api_cases.STATUS_MEANING) >= {200, 201, 400, 404, 409, 422, 500}
+    assert all(text.strip() for text in api_cases.STATUS_MEANING.values())

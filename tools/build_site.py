@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from tools import evidence, readout, results, risk, runs, traceability
+from tools import api_cases, evidence, readout, results, risk, runs, traceability
 from tools.render import esc, inline_markdown, outcome_pill, page, pill, time_tag
 
 REPO = "keonikaku/release-gate-api"
@@ -98,6 +98,135 @@ def documented_endpoints(spec: dict | None) -> tuple[str, ...]:
 
 
 # Pages -----------------------------------------------------------------------
+
+
+def api_tests_page(data: Inputs) -> str:
+    """The case list. Written to be read by someone who never opens the repo."""
+    cases = api_cases.build(data.cases, data.captured)
+    grouped = api_cases.by_status(cases)
+    ran = [case for case in cases if case.observed is not None]
+    passed = [case for case in ran if case.passed]
+
+    cards = "".join(
+        f"""<div class="card">
+  <div class="label">{esc(status)} {esc("responses")}</div>
+  <div class="kpi">{len(group)}</div>
+  <p class="dim">{esc(api_cases.STATUS_MEANING[status])}</p>
+</div>"""
+        for status, group in grouped.items()
+        if status in api_cases.STATUS_MEANING
+    )
+
+    sections = "".join(status_section(status, group) for status, group in grouped.items())
+
+    return f"""
+<h1>API testing: every case, and what the service returned</h1>
+<p class="lede">{len(cases)} test cases against a REST service, each one naming
+the request it sends and the response it expects. Every status code below was
+returned by the running service during the run that generated this page. Nothing
+here is a screenshot or a description of a test.</p>
+
+<div class="grid g3">
+  <div class="card">
+    <div class="label">Cases</div>
+    <div class="kpi">{len(cases)}</div>
+    <p class="dim">across the API and contract layers</p>
+  </div>
+  <div class="card">
+    <div class="label">Passing</div>
+    <div class="kpi">{len(passed)} of {len(ran)}</div>
+    <p class="dim">{outcome_pill("pass" if len(passed) == len(ran) and ran else "fail")}</p>
+  </div>
+  <div class="card">
+    <div class="label">Status codes exercised</div>
+    <div class="kpi">{len(grouped)}</div>
+    <p class="dim">{esc(", ".join(str(s) for s in grouped))}</p>
+  </div>
+</div>
+
+<h2>The responses this suite proves</h2>
+<p>A suite that only shows the happy path proves the service works when nothing
+goes wrong, which is the easy half. These are the ways a request can be refused,
+each with cases behind it.</p>
+<div class="grid g3">{cards}</div>
+
+{contrast_note(grouped)}
+
+<h2>The cases</h2>
+<p>Grouped by the status each one expects. <strong>Expected</strong> is declared
+in the test itself. <strong>Returned</strong> is what the service answered on
+this run. The build fails if those two disagree, so the column on the right is a
+result rather than a restatement of the column on the left.</p>
+{sections}
+"""
+
+
+def status_section(status: int, group: list) -> str:
+    """One status code, its meaning, and the cases that expect it."""
+    rows = []
+    for case in group:
+        subject = case.subject
+        call = (
+            f"<code>{esc(subject.method)} {esc(short_path(subject.path))}</code>"
+            if subject
+            else "<span class='dim'>not run</span>"
+        )
+        setup = (
+            f"<div class='dim'>after {len(case.setup)} setup "
+            f"{'call' if len(case.setup) == 1 else 'calls'}</div>"
+            if case.setup
+            else ""
+        )
+        body = (
+            f"<details class='exchange'><summary>response body</summary>"
+            f"<div class='body'><pre>{esc(json.dumps(subject.response_body, indent=2)[:1200])}</pre></div>"
+            f"</details>"
+            if subject and subject.response_body is not None
+            else ""
+        )
+        rows.append(
+            f"""<tr>
+<td class="k mono">{esc(case.case_id)}</td>
+<td class="k">{esc(case.title)}{setup}{body}</td>
+<td>{call}</td>
+<td class="mono">{esc(case.expects)}</td>
+<td class="mono">{esc(case.observed if case.observed is not None else "-")}</td>
+<td>{outcome_pill(case.outcome)}</td>
+</tr>"""
+        )
+
+    meaning = api_cases.STATUS_MEANING.get(status, "")
+    return f"""
+<h3>{esc(status)}{": " + esc(meaning) if meaning else ""}</h3>
+<table>
+<tr><th>Case</th><th>What it verifies</th><th>Request</th><th>Expected</th>
+<th>Returned</th><th>Result</th></tr>
+{"".join(rows)}
+</table>"""
+
+
+def short_path(path: str) -> str:
+    """A request path with the generated identifier collapsed."""
+    parts = path.split("/")
+    return "/".join("{id}" if len(part) > 20 and "-" in part else part for part in parts)
+
+
+def contrast_note(grouped: dict) -> str:
+    """The 400 against 422 distinction, which is the argument worth making."""
+    first, second = api_cases.CONTRASTING_PAIR
+    if first not in grouped or second not in grouped:
+        return ""
+    return f"""
+<div class="note"><strong>{first} and {second} are not the same refusal, and this
+service does not treat them as one.</strong> A {second} means the request could
+not be read: a missing field, a timestamp with no timezone, a state that does not
+exist. A {first} means the request was read and understood, and a rule refused
+it. Collapsing them is common and it costs something real: in any log, metric or
+alert built on status codes, a caller with a bug and a change that is not ready
+become the same event. The reasoning is recorded in
+<a href="{REPO_URL}/blob/main/docs/decisions/0002-status-codes.md">decision
+0002</a>, and there are {len(grouped[first])} cases on one and
+{len(grouped[second])} on the other.</div>"""
 
 
 def dashboard(data: Inputs, decision: readout.Readout) -> str:
@@ -897,8 +1026,15 @@ def build(reports: Path, ledger: Path, out: Path, sha: str, run_id: str) -> list
     )
 
     pages = {
-        "index.html": ("Release gate: current state", dashboard(data, decision)),
-        "demo.html": ("Two runs: one ships, one does not", demo_page(data)),
+        "index.html": (
+            "API testing: every case and what it returned",
+            api_tests_page(data),
+        ),
+        "pipeline.html": (
+            "Pipeline: is main shippable right now",
+            dashboard(data, decision),
+        ),
+        "demo.html": ("When a build fails, it does not ship", demo_page(data)),
         "traceability.html": ("Traceability", traceability_page(data)),
         "evidence.html": ("Captured exchanges", evidence_page(data)),
         "api.html": ("API", api_page(data)),

@@ -108,28 +108,72 @@ def store(tmp_path: Path) -> Iterator[Store]:
     instance.close()
 
 
+def _wired_client(
+    store: Store,
+    request: pytest.FixtureRequest,
+    raise_server_exceptions: bool,
+) -> Iterator[RecordingClient]:
+    """The application with the store and the clock injected."""
+    app.dependency_overrides[get_store] = lambda: store
+    app.dependency_overrides[get_clock] = lambda: fixed_clock(PINNED_NOW)
+    with RecordingClient(
+        app, raise_server_exceptions=raise_server_exceptions
+    ) as test_client:
+        yield test_client
+        _capture(request, test_client)
+    app.dependency_overrides.clear()
+
+
 @pytest.fixture
 def client(store: Store, request: pytest.FixtureRequest) -> Iterator[RecordingClient]:
     """The application with the store and the clock injected.
 
     The clock is pinned so `created_at` is an asserted value rather than a
     field the tests agree not to look at.
+
+    Server exceptions are re-raised, so a failing case shows the traceback that
+    caused it rather than a bare 500. That is the right default for tests about
+    behaviour, and the wrong one for tests about what a caller is told: see
+    `caller_client`.
     """
-    app.dependency_overrides[get_store] = lambda: store
-    app.dependency_overrides[get_clock] = lambda: fixed_clock(PINNED_NOW)
-    with RecordingClient(app) as test_client:
-        yield test_client
-        _capture(request, test_client)
-    app.dependency_overrides.clear()
+    yield from _wired_client(store, request, raise_server_exceptions=True)
+
+
+@pytest.fixture
+def caller_client(
+    store: Store, request: pytest.FixtureRequest
+) -> Iterator[RecordingClient]:
+    """The application as a real HTTP client meets it.
+
+    The default test client re-raises an unhandled server exception instead of
+    returning the response the framework would actually send. That is a
+    debugging convenience, and it means a suite that only uses the default
+    client can never observe its own 500s. This fixture turns it off, so an
+    error path case asserts the status a caller would receive.
+    """
+    yield from _wired_client(store, request, raise_server_exceptions=False)
 
 
 def _capture(request: pytest.FixtureRequest, client: RecordingClient) -> None:
-    """Write this test's exchanges, if capture is switched on."""
+    """Hand this test's exchanges to the reporter, and write them if asked.
+
+    The attributes are attached whether or not capture is switched on, because
+    the live reporter reads them to print one line per case and it has to work
+    on a plain local run.
+    """
+    node = request.node
+    node._api_exchanges = list(client.exchanges)  # noqa: SLF001 - read by the reporter
+    node._api_outcome = node.stash.get(OUTCOME_KEY, "unknown")  # noqa: SLF001
+    statuses = getattr(node.config, "_api_statuses", None)
+    if statuses is None:
+        statuses = []
+        node.config._api_statuses = statuses  # noqa: SLF001
+    statuses.extend(exchange.status for exchange in client.exchanges)
+
     directory = os.environ.get(CAPTURE_ENV)
     if not directory or not client.exchanges:
         return
 
-    node = request.node
     doc = node.function.__doc__ or ""
     node_id = str(node.nodeid)
     write(

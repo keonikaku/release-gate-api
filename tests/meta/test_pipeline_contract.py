@@ -176,3 +176,38 @@ def test_the_pages_render_without_leaking_markdown(tmp_path):
             if marker in prose:
                 leaks.append(f"{path.name} publishes {marker!r}")
     assert leaks == [], "\n".join(leaks)
+
+
+def test_every_api_case_carries_an_id_and_an_expected_status():
+    """A case in the published list declares what it checks for.
+
+    Layer: meta
+    Covers: none
+    Why this layer: the page is generated from these annotations, so a case
+    without them would either vanish from the list or appear with a blank
+    expectation. Agreement with the run itself is checked by
+    tools/check_api_cases.py, which runs against real captured evidence in both
+    workflows.
+    """
+    from tools import api_cases  # noqa: PLC0415 - only needed by this case
+
+    cases = api_cases.build()
+    assert len(cases) >= 30
+    assert api_cases.duplicate_ids(cases) == []
+    assert api_cases.missing_expectations(cases) == []
+    assert all(case.case_id.startswith("API-") for case in cases)
+
+
+def test_the_case_list_covers_the_status_codes_the_page_explains():
+    """Every status the page gives a meaning for has at least one case.
+
+    Layer: meta
+    Covers: none
+    Why this layer: the page prints a meaning per status code, and a meaning
+    with no case behind it is a claim about coverage that does not exist.
+    """
+    from tools import api_cases  # noqa: PLC0415 - only needed by this case
+
+    declared = {case.expects for case in api_cases.build()}
+    missing = sorted(set(api_cases.STATUS_MEANING) - declared)
+    assert missing == [], f"status codes explained but never exercised: {missing}"
