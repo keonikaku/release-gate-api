@@ -950,6 +950,7 @@ def inputs_with(ledger: list[runs.RunRow], gh_runs: list[dict]) -> object:
         captured=[],
         openapi=None,
         gh_runs=gh_runs,
+        failure_log=None,
         production=None,
         open_blockers=None,
         sha="a" * 40,
@@ -1155,3 +1156,92 @@ def test_every_status_the_page_explains_has_a_stated_meaning():
     """
     assert set(api_cases.STATUS_MEANING) >= {200, 201, 400, 404, 409, 422, 500}
     assert all(text.strip() for text in api_cases.STATUS_MEANING.values())
+
+
+def test_the_walkthrough_names_cases_that_exist():
+    """Every curated entry resolves to a real case.
+
+    Layer: unit
+    Covers: none
+    Why this layer: the walkthrough is a hand chosen list, which is the one
+    place on the page where a rename could silently drop a step out of the
+    story rather than fail anything.
+    """
+    cases = api_cases.build()
+    assert api_cases.missing_from_walkthrough(cases) == []
+    assert len(api_cases.walkthrough(cases)) == len(api_cases.WALKTHROUGH)
+
+
+def test_the_walkthrough_keeps_its_narrative_order():
+    """The curated order is the order the page shows, not status order.
+
+    Layer: unit
+    Covers: none
+    Why this layer: sorting by status would break the story the list tells,
+    and the default ordering of a case list is by status.
+    """
+    walk = api_cases.walkthrough(api_cases.build())
+    assert [case.name for case in walk] == list(api_cases.WALKTHROUGH)
+
+
+def test_the_walkthrough_covers_every_status_the_page_explains():
+    """The twelve cases between them show each kind of response.
+
+    Layer: unit
+    Covers: none
+    Why this layer: the curated list is the page, so a status with no case in
+    it is a claim the reader never sees evidence for.
+    """
+    shown = {case.expects for case in api_cases.walkthrough(api_cases.build())}
+    assert shown == set(api_cases.STATUS_MEANING)
+
+
+def test_the_assertion_reads_as_a_sentence():
+    """A row says what it checked, not just what it got.
+
+    Layer: unit
+    Covers: none
+    Why this layer: "404 PASS" makes a reader infer the assertion, and beside a
+    500 it reads like a defect. This is the wording that removes the inference.
+    """
+    assert api_case(expects=404, observed=404).assertion == "expected 404, got 404"
+    assert api_case(expects=500, observed=500).assertion == "expected 500, got 500"
+    assert "did not run" in api_case(expects=404, observed=None).assertion
+
+
+def test_a_long_response_body_is_trimmed_for_the_table():
+    """A row does not dump an entire document into the page.
+
+    Layer: unit
+    Covers: none
+    Why this layer: several rows previously printed the whole OpenAPI spec
+    inline, which is the wall of text the page exists to avoid.
+    """
+    short = build_site.trimmed_body({"a": 1})
+    assert "more characters" not in short
+    long = build_site.trimmed_body({"k": "x" * 4000})
+    assert "more characters" in long
+    assert len(long) < 1100
+
+
+def test_the_published_failure_numbers_come_out_of_the_log():
+    """Expected and actual are parsed from the run log, not restated beside it.
+
+    Layer: unit
+    Covers: none
+    Why this layer: those two numbers are the whole point of the failure
+    section, and a hand written copy of them is exactly the drift this site
+    keeps finding in its own prose.
+    """
+    lines = [
+        "ok    healthz responds",
+        "FAIL  a change is created: expected 201, got 500",
+        "      the service said: {'unparsed_body': 'Internal Server Error'}",
+    ]
+    parsed = api_cases.parse_smoke_failure(lines)
+    assert parsed == {
+        "check": "a change is created",
+        "expected": "201",
+        "actual": "500",
+    }
+    assert api_cases.parse_smoke_failure(["ok    healthz responds"]) is None

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -65,6 +66,71 @@ def collect_runs(out: Path, limit: int = 30) -> None:
             run["headCommitMessage"] = head.strip().splitlines()[0]
     (out / "gh-runs.json").write_text(json.dumps(runs_data, indent=2), encoding="utf-8")
     print(f"wrote {len(runs_data)} runs")
+    collect_failure_log(out, runs_data)
+
+
+SMOKE_LINE = re.compile(r"^(ok\s|FAIL\s|\s+the service said)")
+ANSI = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def collect_failure_log(out: Path, runs_data: list[dict]) -> None:
+    """Keep the smoke output of the most recent blocked run on main.
+
+    The page shows one real failure: what was expected, what came back, and
+    which run. Those numbers are not typed anywhere. They are lifted out of
+    GitHub's own log for that run, which is the strongest source available and
+    not one this repository can edit.
+    """
+    blocked = next(
+        (
+            run
+            for run in runs_data
+            if run.get("headBranch") == "main"
+            and any(
+                job["name"].startswith("Verify") and job.get("conclusion") == "failure"
+                for job in run.get("jobs", [])
+            )
+        ),
+        None,
+    )
+    if not blocked:
+        print("no blocked run on main; writing no failure log")
+        return
+
+    log = gh("run", "view", str(blocked["databaseId"]), "--log-failed")
+    if log is None:
+        print("could not read the failed run log")
+        return
+
+    lines = []
+    for raw in log.splitlines():
+        text = ANSI.sub("", raw)
+        # Drop the job, step and timestamp columns the log viewer prefixes.
+        parts = text.split("\t")
+        body = parts[-1]
+        body = re.sub(r"^\d{4}-\d\d-\d\dT[\d:.]+Z\s?", "", body)
+        if SMOKE_LINE.match(body):
+            lines.append(body.rstrip())
+
+    if not lines:
+        print("the failed run log carried no smoke output")
+        return
+
+    (out / "failure-log.json").write_text(
+        json.dumps(
+            {
+                "run_id": str(blocked["databaseId"]),
+                "url": blocked.get("url", ""),
+                "commit_sha": blocked.get("headSha", ""),
+                "commit_message": blocked.get("headCommitMessage", ""),
+                "created_at": blocked.get("createdAt", ""),
+                "lines": lines,
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    print(f"kept {len(lines)} lines of smoke output from run {blocked['databaseId']}")
 
 
 def collect_blockers(out: Path) -> None:

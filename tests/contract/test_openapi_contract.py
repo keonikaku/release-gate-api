@@ -48,9 +48,7 @@ def test_the_service_publishes_an_openapi_document(openapi):
     """The spec is served by the application, generated from the code.
 
     Case: API-13
-
     Expects: 200
-
     Layer: contract
     Covers: none
     Why this layer: the spec is the artifact this layer validates against, so
@@ -65,9 +63,7 @@ def test_the_published_version_matches_the_service_version(openapi):
     """The version in the spec is the version the service reports at /healthz.
 
     Case: API-12
-
     Expects: 200
-
     Layer: contract
     Covers: none
     Why this layer: two published values that must agree. A drift here is
@@ -80,9 +76,7 @@ def test_health_response_matches_the_documented_schema(client, openapi):
     """/healthz returns what the spec says it returns.
 
     Case: API-05
-
     Expects: 200
-
     Layer: contract
     Covers: none
     Why this layer: the endpoint a deployment check calls is the one most likely
@@ -97,9 +91,7 @@ def test_created_change_matches_the_documented_schema(client, openapi):
     """The 201 body validates against the declared ChangeRecord schema.
 
     Case: API-02
-
     Expects: 201
-
     Layer: contract
     Covers: REQ-2
     Why this layer: the record and its state are what every consumer reads.
@@ -111,9 +103,7 @@ def test_read_change_matches_the_documented_schema(client, openapi):
     """The 200 body from a read validates against the declared schema.
 
     Case: API-08
-
     Expects: 200
-
     Layer: contract
     Covers: REQ-2
     Why this layer: create and read serialise the same model through different
@@ -129,9 +119,7 @@ def test_submitted_change_matches_the_documented_schema(client, openapi):
     """The 200 body from a successful submission validates.
 
     Case: API-11
-
     Expects: 200
-
     Layer: contract
     Covers: REQ-1, REQ-2
     Why this layer: the success path of the endpoint that carries the gate
@@ -147,9 +135,7 @@ def test_rejection_body_matches_the_documented_schema(client, openapi):
     """A refusal is described by the spec, not just returned by the code.
 
     Case: API-09
-
     Expects: 400
-
     Layer: contract
     Covers: REQ-1
     Why this layer: a consumer writing error handling reads the 400 schema. If
@@ -166,9 +152,7 @@ def test_illegal_transition_body_matches_the_documented_schema(client, openapi):
     as documented.
 
     Case: API-06
-
     Expects: 409
-
     Layer: contract
     Covers: REQ-2
     Why this layer: the 409 body is the machine readable part of the state
@@ -188,9 +172,7 @@ def test_not_found_body_matches_the_documented_schema(client, openapi):
     """A 404 body is documented too.
 
     Case: API-07
-
     Expects: 404
-
     Layer: contract
     Covers: none
     Why this layer: the cheapest error to leave undocumented, and the one a
@@ -205,9 +187,7 @@ def test_schema_error_body_matches_the_documented_schema(client, openapi):
     """A malformed payload returns the framework's documented 422 shape.
 
     Case: API-10
-
     Expects: 422
-
     Layer: contract
     Covers: none
     Why this layer: 422 and 400 mean different things in this service (see
@@ -223,9 +203,7 @@ def test_a_response_carrying_an_undocumented_field_would_fail(client, openapi):
     """The check runs in both directions: an extra field is a contract break.
 
     Case: API-01
-
     Expects: 201
-
     Layer: contract
     Covers: none
     Why this layer: proves the validator is not permissive. Without this, every
@@ -241,9 +219,7 @@ def test_every_operation_declares_a_summary(openapi):
     """Every documented operation carries a summary, taken from its docstring.
 
     Case: API-04
-
     Expects: 200
-
     Layer: contract
     Covers: none
     Why this layer: a spec whose operations are unnamed is technically valid and
@@ -262,9 +238,7 @@ def test_every_error_response_declares_a_schema(openapi):
     """Every 4xx the spec lists has a body schema attached.
 
     Case: API-03
-
     Expects: 200
-
     Layer: contract
     Covers: none
     Why this layer: a documented status code with no documented body is the
