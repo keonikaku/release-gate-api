@@ -15,6 +15,7 @@ from __future__ import annotations
 from datetime import datetime
 
 import pytest
+from fastapi.testclient import TestClient
 
 from tests.factories import PINNED_NOW, on_call_entry, valid_payload
 
@@ -384,3 +385,45 @@ def test_two_changes_do_not_share_state(client):
     client.post(f"/changes/{first}/submit")
     assert client.get(f"/changes/{first}").json()["state"] == "submitted"
     assert client.get(f"/changes/{second}").json()["state"] == "draft"
+
+
+@pytest.mark.endpoint(CREATE)
+def test_the_real_store_wiring_opens_a_usable_database(tmp_path, monkeypatch):
+    """REGRESSION, run 2 of the demo. The dependency that wires the real store
+    honours the configured database path and opens something usable.
+
+    Every other case in this suite injects its own store, so `get_store` was
+    executed by nothing. A change to it passed the whole gate and broke the
+    first request against a served instance. This is the case that would have
+    caught it.
+
+    It builds the application without the store override, which is what makes it
+    the only case here that exercises the production wiring.
+
+    Layer: integration
+    Covers: none
+    Why this layer: the defect was in dependency wiring, which does not exist
+    until the application is assembled and asked for a store. A unit test of
+    `Store` passes with this defect present, because `Store` was never the
+    broken part. Only a request through the assembled application shows it.
+    """
+    from app.main import app as real_app  # noqa: PLC0415 - deliberate, see below
+    from app.main import get_clock, get_store  # noqa: PLC0415
+
+    monkeypatch.setenv("RELEASE_GATE_DB", str(tmp_path / "wired.db"))
+    monkeypatch.setattr("app.main._store", None)
+    real_app.dependency_overrides.pop(get_store, None)
+    real_app.dependency_overrides[get_clock] = lambda: lambda: PINNED_NOW
+
+    try:
+        with TestClient(real_app) as wired:
+            response = wired.post("/changes", json=valid_payload())
+            assert response.status_code == 201, response.text
+            change_id = response.json()["id"]
+            assert wired.get(f"/changes/{change_id}").status_code == 200
+    finally:
+        real_app.dependency_overrides.clear()
+
+    assert (tmp_path / "wired.db").exists(), (
+        "the configured database path was not the one used"
+    )
