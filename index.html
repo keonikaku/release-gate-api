@@ -91,19 +91,19 @@ not typed in.</p>
 <div class="banner">
   <div>
     <div class="label">Release readiness</div>
-    <div class="verdict nogo">NO-GO</div>
+    <div class="verdict go">GO</div>
   </div>
   <div>
     <div class="label">Commit</div>
-    <div class="mono">9c2ba89</div>
+    <div class="mono">699cb80</div>
   </div>
   <div>
     <div class="label">Computed</div>
-    <div><time class="ts" datetime="2026-07-30T06:04:43.867793+00:00">29 Jul 2026, 20:04 HST</time></div>
+    <div><time class="ts" datetime="2026-07-30T06:06:26.243912+00:00">29 Jul 2026, 20:06 HST</time></div>
   </div>
   <div>
     <div class="label">Run</div>
-    <div><a href="https://github.com/keonikaku/release-gate-api/actions/runs/30518441807">30518441807</a></div>
+    <div><a href="https://github.com/keonikaku/release-gate-api/actions/runs/30518519630">30518519630</a></div>
   </div>
 </div>
 
@@ -114,27 +114,27 @@ never collapse into each other.</div>
 <div class="grid g3" style="margin-top:22px">
   <div class="card">
     <div class="label">Currently in production</div>
-    <div class="kpi">v0.1.5</div>
-    <p><span class="pill warn">main is ahead of production</span></p>
-    <p class="dim">Promoted <time class="ts" datetime="2026-07-30T06:03:13+00:00">29 Jul 2026, 20:03 HST</time></p>
+    <div class="kpi">v0.1.7</div>
+    <p><span class="pill ok">production is on this commit</span></p>
+    <p class="dim">Promoted <time class="ts" datetime="2026-07-30T06:06:06+00:00">29 Jul 2026, 20:06 HST</time></p>
   </div>
   <div class="card">
     <div class="label">Suite on this commit</div>
-    <div class="kpi">201 of 201 passed</div>
+    <div class="kpi">202 of 202 passed</div>
     <p><span class="pill ok">pass</span></p>
     <p class="dim">1.14s</p>
   </div>
   <div class="card">
     <div class="label">Post-merge runs recorded</div>
-    <div class="kpi">3</div>
-    <p class="dim">2 of 3 passed, too few runs for a rate</p>
+    <div class="kpi">4</div>
+    <p class="dim">3 of 4 passed, too few runs for a rate</p>
   </div>
 </div>
 
 <h2>The five criteria</h2>
 <table>
 <tr><th>ID</th><th>Criterion</th><th>Verdict</th><th>Evidence</th></tr>
-<tr><td class='k'><code>C1</code></td><td class='k'>The full suite passes on this commit.</td><td><span class="pill ok">MET</span></td><td>201 of 201 cases passed.</td></tr><tr><td class='k'><code>C2</code></td><td class='k'>No case was skipped, so a pass is the whole suite passing.</td><td><span class="pill ok">MET</span></td><td>201 cases ran, none skipped.</td></tr><tr><td class='k'><code>C3</code></td><td class='k'>Every requirement has a test or a stated gap, and no test claims a requirement that does not exist.</td><td><span class="pill ok">MET</span></td><td>17 requirements, all traced.</td></tr><tr><td class='k'><code>C4</code></td><td class='k'>Every documented endpoint is exercised, and no test points at an endpoint that is not documented.</td><td><span class="pill warn">NOT EVALUATED</span></td><td>No OpenAPI document was produced by this run.</td></tr><tr><td class='k'><code>C5</code></td><td class='k'>No open issue is labelled release-blocker.</td><td><span class="pill ok">MET</span></td><td>Zero open release-blocker issues.</td></tr>
+<tr><td class='k'><code>C1</code></td><td class='k'>The full suite passes on this commit.</td><td><span class="pill ok">MET</span></td><td>202 of 202 cases passed.</td></tr><tr><td class='k'><code>C2</code></td><td class='k'>No case was skipped, so a pass is the whole suite passing.</td><td><span class="pill ok">MET</span></td><td>202 cases ran, none skipped.</td></tr><tr><td class='k'><code>C3</code></td><td class='k'>Every requirement has a test or a stated gap, and no test claims a requirement that does not exist.</td><td><span class="pill ok">MET</span></td><td>17 requirements, all traced.</td></tr><tr><td class='k'><code>C4</code></td><td class='k'>Every documented endpoint is exercised, and no test points at an endpoint that is not documented.</td><td><span class="pill ok">MET</span></td><td>5 endpoints, all exercised.</td></tr><tr><td class='k'><code>C5</code></td><td class='k'>No open issue is labelled release-blocker.</td><td><span class="pill ok">MET</span></td><td>Zero open release-blocker issues.</td></tr>
 </table>
 
 <h2>What ran, by layer</h2>
@@ -142,15 +142,15 @@ never collapse into each other.</div>
 count once per instance, because that is what ran.</p>
 <table>
 <tr><th>Layer</th><th>Cases</th><th></th></tr>
-<tr><td class='k'>unit</td><td class='mono'>135</td><td style='width:55%'><div class='bar'><span style='width:100%'></span></div></td></tr><tr><td class='k'>meta</td><td class='mono'>32</td><td style='width:55%'><div class='bar'><span style='width:24%'></span></div></td></tr><tr><td class='k'>integration</td><td class='mono'>21</td><td style='width:55%'><div class='bar'><span style='width:16%'></span></div></td></tr><tr><td class='k'>contract</td><td class='mono'>13</td><td style='width:55%'><div class='bar'><span style='width:10%'></span></div></td></tr>
+<tr><td class='k'>unit</td><td class='mono'>135</td><td style='width:55%'><div class='bar'><span style='width:100%'></span></div></td></tr><tr><td class='k'>meta</td><td class='mono'>32</td><td style='width:55%'><div class='bar'><span style='width:24%'></span></div></td></tr><tr><td class='k'>integration</td><td class='mono'>22</td><td style='width:55%'><div class='bar'><span style='width:16%'></span></div></td></tr><tr><td class='k'>contract</td><td class='mono'>13</td><td style='width:55%'><div class='bar'><span style='width:10%'></span></div></td></tr>
 </table>
 
 <h2>Run history</h2>
-<svg viewBox="0 0 66 120" width="100%" height="140" role="img" aria-label="cases run per post-merge run"><rect x="0" y="11" width="18" height="109" fill="#34d399" rx="3"><title>run 4: pass, 183 cases, 4655b63</title></rect><rect x="22" y="0" width="18" height="120" fill="#34d399" rx="3"><title>run 5: pass, 201 cases, 4c30517</title></rect><rect x="44" y="0" width="18" height="120" fill="#f87171" rx="3"><title>run 6: fail, 201 cases, 9c2ba89</title></rect></svg>
+<svg viewBox="0 0 88 120" width="100%" height="140" role="img" aria-label="cases run per post-merge run"><rect x="0" y="11" width="18" height="109" fill="#34d399" rx="3"><title>run 4: pass, 183 cases, 4655b63</title></rect><rect x="22" y="1" width="18" height="119" fill="#34d399" rx="3"><title>run 5: pass, 201 cases, 4c30517</title></rect><rect x="44" y="1" width="18" height="119" fill="#f87171" rx="3"><title>run 6: fail, 201 cases, 9c2ba89</title></rect><rect x="66" y="0" width="18" height="120" fill="#34d399" rx="3"><title>run 7: pass, 202 cases, 699cb80</title></rect></svg>
 <table>
 <tr><th>#</th><th>Result</th><th>Commit</th><th>Branch</th><th>Started</th>
 <th>Passed</th><th>Promoted</th><th></th></tr>
-<tr><td class='k mono'>6</td><td><span class="pill bad">fail</span></td><td class='mono'>9c2ba89</td><td>main</td><td><time class="ts" datetime="2026-07-30T06:04:43.724359+00:00">29 Jul 2026, 20:04 HST</time></td><td class='mono'>201/201</td><td class='mono'>v0.1.5</td><td><a href='https://github.com/keonikaku/release-gate-api/actions/runs/30518441807'>run</a></td></tr><tr><td class='k mono'>5</td><td><span class="pill ok">pass</span></td><td class='mono'>4c30517</td><td>main</td><td><time class="ts" datetime="2026-07-30T06:03:29.163743+00:00">29 Jul 2026, 20:03 HST</time></td><td class='mono'>201/201</td><td class='mono'>v0.1.5</td><td><a href='https://github.com/keonikaku/release-gate-api/actions/runs/30518372449'>run</a></td></tr><tr><td class='k mono'>4</td><td><span class="pill ok">pass</span></td><td class='mono'>4655b63</td><td>main</td><td><time class="ts" datetime="2026-07-30T01:53:27.521695+00:00">29 Jul 2026, 15:53 HST</time></td><td class='mono'>183/183</td><td class='mono'>v0.1.4</td><td><a href='https://github.com/keonikaku/release-gate-api/actions/runs/30506866995'>run</a></td></tr></table>
+<tr><td class='k mono'>7</td><td><span class="pill ok">pass</span></td><td class='mono'>699cb80</td><td>main</td><td><time class="ts" datetime="2026-07-30T06:06:26.096569+00:00">29 Jul 2026, 20:06 HST</time></td><td class='mono'>202/202</td><td class='mono'>v0.1.7</td><td><a href='https://github.com/keonikaku/release-gate-api/actions/runs/30518519630'>run</a></td></tr><tr><td class='k mono'>6</td><td><span class="pill bad">fail</span></td><td class='mono'>9c2ba89</td><td>main</td><td><time class="ts" datetime="2026-07-30T06:04:43.724359+00:00">29 Jul 2026, 20:04 HST</time></td><td class='mono'>201/201</td><td class='mono'>v0.1.5</td><td><a href='https://github.com/keonikaku/release-gate-api/actions/runs/30518441807'>run</a></td></tr><tr><td class='k mono'>5</td><td><span class="pill ok">pass</span></td><td class='mono'>4c30517</td><td>main</td><td><time class="ts" datetime="2026-07-30T06:03:29.163743+00:00">29 Jul 2026, 20:03 HST</time></td><td class='mono'>201/201</td><td class='mono'>v0.1.5</td><td><a href='https://github.com/keonikaku/release-gate-api/actions/runs/30518372449'>run</a></td></tr><tr><td class='k mono'>4</td><td><span class="pill ok">pass</span></td><td class='mono'>4655b63</td><td>main</td><td><time class="ts" datetime="2026-07-30T01:53:27.521695+00:00">29 Jul 2026, 15:53 HST</time></td><td class='mono'>183/183</td><td class='mono'>v0.1.4</td><td><a href='https://github.com/keonikaku/release-gate-api/actions/runs/30506866995'>run</a></td></tr></table>
 <p class="dim">The ledger is appended by the publish job and lives on the
 <code>gh-pages</code> branch, not on <code>main</code>. What the platform
 enforces there is that history cannot be rewritten or deleted: force pushes and
@@ -173,7 +173,7 @@ Every page here is generated by the post-merge workflow from the artifacts of a
 real run. No number on this site is typed in. The sentences that explain what
 you are looking at are written by a person; every figure, result, timestamp and
 link beside them comes from the run.
-Built from commit <code>9c2ba89</code> at <time class="ts" datetime="2026-07-30T06:04:43.867793+00:00">29 Jul 2026, 20:04 HST</time>.
+Built from commit <code>699cb80</code> at <time class="ts" datetime="2026-07-30T06:06:26.243912+00:00">29 Jul 2026, 20:06 HST</time>.
 <br>
 <a href="https://github.com/keonikaku/release-gate-api">Repository</a> &middot;
 <a href="https://github.com/keonikaku/release-gate-api/actions/workflows/post-merge.yml">Run history</a>

@@ -84,13 +84,57 @@ footer{border-top:1px solid var(--line);margin-top:56px;padding-top:20px;
 <main class="wrap">
 
 <h1>API</h1>
-<p class="lede">This run produced no OpenAPI document.</p>
+<p class="lede">Generated from the application on every run, never hand
+maintained. The contract layer validates real response bodies against this
+document in both directions, so a response carrying a field this page does not
+list fails the build.</p>
+<p><a href="openapi.json">Download the raw document</a></p>
+<div class="card" style="margin:14px 0">
+<h3><span class="pill">GET</span> <code>/healthz</code></h3>
+<p>Healthz</p>
+<p class="dim">Liveness, and the version this instance is running.</p>
+<table><tr><th>Status</th><th>Meaning</th><th>Body</th></tr><tr><td class='k mono'>200</td><td>Successful Response</td><td class='mono'>Health</td></tr></table>
+</div><div class="card" style="margin:14px 0">
+<h3><span class="pill">POST</span> <code>/changes</code></h3>
+<p>Create Change</p>
+<p class="dim">Record a change in Draft. No rules run here.
+
+Drafting is not submitting. The gate evaluates REQ-1 when the change is
+submitted, which is what makes a rejection a decision about a submission
+rather than a schema error.</p>
+<table><tr><th>Status</th><th>Meaning</th><th>Body</th></tr><tr><td class='k mono'>201</td><td>Successful Response</td><td class='mono'>ChangeRecord</td></tr><tr><td class='k mono'>422</td><td>Validation Error</td><td class='mono'>HTTPValidationError</td></tr></table>
+</div><div class="card" style="margin:14px 0">
+<h3><span class="pill">GET</span> <code>/changes/{change_id}</code></h3>
+<p>Read Change</p>
+<p class="dim">Read one change record.</p>
+<table><tr><th>Status</th><th>Meaning</th><th>Body</th></tr><tr><td class='k mono'>200</td><td>Successful Response</td><td class='mono'>ChangeRecord</td></tr><tr><td class='k mono'>404</td><td>No such change.</td><td class='mono'>NotFoundResponse</td></tr><tr><td class='k mono'>422</td><td>Validation Error</td><td class='mono'>HTTPValidationError</td></tr></table>
+</div><div class="card" style="margin:14px 0">
+<h3><span class="pill">POST</span> <code>/changes/{change_id}/submit</code></h3>
+<p>Submit Change</p>
+<p class="dim">Run REQ-1 against the change and move it to Submitted if it passes.
+
+A refusal is a 400 carrying every violation, not the first one. A change
+that is not in Draft cannot be submitted, and that is a 409 from REQ-2.</p>
+<table><tr><th>Status</th><th>Meaning</th><th>Body</th></tr><tr><td class='k mono'>200</td><td>Successful Response</td><td class='mono'>ChangeRecord</td></tr><tr><td class='k mono'>400</td><td>The gate refused the submission (REQ-1).</td><td class='mono'>RejectionResponse</td></tr><tr><td class='k mono'>404</td><td>No such change.</td><td class='mono'>NotFoundResponse</td></tr><tr><td class='k mono'>409</td><td>The change is not in Draft (REQ-2).</td><td class='mono'>TransitionErrorResponse</td></tr><tr><td class='k mono'>422</td><td>Validation Error</td><td class='mono'>HTTPValidationError</td></tr></table>
+</div><div class="card" style="margin:14px 0">
+<h3><span class="pill">POST</span> <code>/changes/{change_id}/transition</code></h3>
+<p>Transition Change</p>
+<p class="dim">Move a change along the lifecycle (REQ-2).
+
+Draft to Submitted is not available here: it goes through `/submit`, so the
+validation cannot be stepped around.</p>
+<table><tr><th>Status</th><th>Meaning</th><th>Body</th></tr><tr><td class='k mono'>200</td><td>Successful Response</td><td class='mono'>ChangeRecord</td></tr><tr><td class='k mono'>404</td><td>No such change.</td><td class='mono'>NotFoundResponse</td></tr><tr><td class='k mono'>409</td><td>The move is not on the lifecycle graph (REQ-2).</td><td class='mono'>TransitionErrorResponse</td></tr><tr><td class='k mono'>422</td><td>Validation Error</td><td class='mono'>HTTPValidationError</td></tr></table>
+</div>
+<h2>Schemas</h2>
+<table><tr><th>Schema</th><th>Required fields</th><th>Unknown fields</th></tr>
+<tr><td class='k mono'>ChangeRecord</td><td class='mono'>id, state, created_at, updated_at, submission</td><td><span class="pill ok">extra fields refused</span></td></tr><tr><td class='k mono'>ChangeSubmission</td><td class='mono'>title, release_type, scrum_team, submitter, fix_version, implementation_start, implementation_end</td><td><span class="pill ok">extra fields refused</span></td></tr><tr><td class='k mono'>HTTPValidationError</td><td class='mono'>-</td><td><span class="pill warn">extra fields allowed</span></td></tr><tr><td class='k mono'>Health</td><td class='mono'>status, version</td><td><span class="pill ok">extra fields refused</span></td></tr><tr><td class='k mono'>MergeRequestRecord</td><td class='mono'>stage, url, merged_at</td><td><span class="pill ok">extra fields refused</span></td></tr><tr><td class='k mono'>NotFoundDetail</td><td class='mono'>-</td><td><span class="pill ok">extra fields refused</span></td></tr><tr><td class='k mono'>NotFoundResponse</td><td class='mono'>detail</td><td><span class="pill ok">extra fields refused</span></td></tr><tr><td class='k mono'>OnCallAssignment</td><td class='mono'>role, name, window_start, window_end</td><td><span class="pill ok">extra fields refused</span></td></tr><tr><td class='k mono'>PromotionStage</td><td class='mono'>-</td><td><span class="pill warn">extra fields allowed</span></td></tr><tr><td class='k mono'>RejectionDetail</td><td class='mono'>violations</td><td><span class="pill ok">extra fields refused</span></td></tr><tr><td class='k mono'>RejectionResponse</td><td class='mono'>detail</td><td><span class="pill ok">extra fields refused</span></td></tr><tr><td class='k mono'>ReleaseType</td><td class='mono'>-</td><td><span class="pill warn">extra fields allowed</span></td></tr><tr><td class='k mono'>Role</td><td class='mono'>-</td><td><span class="pill warn">extra fields allowed</span></td></tr><tr><td class='k mono'>State</td><td class='mono'>-</td><td><span class="pill warn">extra fields allowed</span></td></tr><tr><td class='k mono'>TestEnvironment</td><td class='mono'>-</td><td><span class="pill warn">extra fields allowed</span></td></tr><tr><td class='k mono'>TestEvidence</td><td class='mono'>environment, passed, reference</td><td><span class="pill ok">extra fields refused</span></td></tr><tr><td class='k mono'>TransitionErrorDetail</td><td class='mono'>rule, from_state, to_state, allowed</td><td><span class="pill ok">extra fields refused</span></td></tr><tr><td class='k mono'>TransitionErrorResponse</td><td class='mono'>detail</td><td><span class="pill ok">extra fields refused</span></td></tr><tr><td class='k mono'>TransitionRequest</td><td class='mono'>to_state</td><td><span class="pill ok">extra fields refused</span></td></tr><tr><td class='k mono'>ValidationError</td><td class='mono'>loc, msg, type</td><td><span class="pill warn">extra fields allowed</span></td></tr><tr><td class='k mono'>Violation</td><td class='mono'>rule, message</td><td><span class="pill ok">extra fields refused</span></td></tr></table>
+
 <footer>
 Every page here is generated by the post-merge workflow from the artifacts of a
 real run. No number on this site is typed in. The sentences that explain what
 you are looking at are written by a person; every figure, result, timestamp and
 link beside them comes from the run.
-Built from commit <code>9c2ba89</code> at <time class="ts" datetime="2026-07-30T06:04:43.867793+00:00">29 Jul 2026, 20:04 HST</time>.
+Built from commit <code>699cb80</code> at <time class="ts" datetime="2026-07-30T06:06:26.243912+00:00">29 Jul 2026, 20:06 HST</time>.
 <br>
 <a href="https://github.com/keonikaku/release-gate-api">Repository</a> &middot;
 <a href="https://github.com/keonikaku/release-gate-api/actions/workflows/post-merge.yml">Run history</a>
