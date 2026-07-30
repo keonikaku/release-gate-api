@@ -40,10 +40,9 @@ def check_rollback_plan(submission: ChangeSubmission) -> Violation | None:
 
 
 def check_test_evidence(submission: ChangeSubmission) -> Violation | None:
-    """REQ-1.2 and REQ-1.2a. Rejected without passing evidence in every required
-    environment. Emergency and hotfix changes drop the BAT requirement and keep
-    the rest."""
-    required = required_test_environments(submission.change_class)
+    """REQ-1.2. Rejected without passing evidence in every required environment.
+    There are no exemptions."""
+    required = required_test_environments()
     passed = {e.environment for e in submission.test_evidence if e.passed}
     missing = [env.value for env in required if env not in passed]
     if missing:

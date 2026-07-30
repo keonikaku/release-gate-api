@@ -54,7 +54,7 @@ def test_missing_rollback_plan_is_refused(plan):
     assert "REQ-1.1" in rules_broken(valid_submission(rollback_plan=plan))
 
 
-# REQ-1.2 and REQ-1.2a --------------------------------------------------------
+# REQ-1.2 ---------------------------------------------------------------------
 
 
 def evidence(*environments, passed=True):
@@ -66,37 +66,31 @@ def evidence(*environments, passed=True):
 
 
 @pytest.mark.parametrize(
-    ("change_class", "environments", "refused"),
+    ("environments", "refused"),
     [
-        # The pair that carries REQ-1.2a: same missing evidence, opposite answer
-        # depending on the class.
-        ("normal", ("dev", "qa"), True),
-        ("emergency", ("dev", "qa"), False),
-        ("standard", ("dev", "qa"), True),
-        ("hotfix", ("dev", "qa"), False),
-        # The exemption is narrow: emergency still needs dev and QA.
-        ("emergency", ("dev",), True),
-        ("emergency", ("qa",), True),
-        ("hotfix", ("dev", "qa", "bat"), False),
-        ("normal", ("dev", "qa", "bat"), False),
-        ("normal", (), True),
+        # Every environment is required and there are no exemptions, so each
+        # single omission is its own rejection.
+        ((), True),
+        (("dev",), True),
+        (("qa",), True),
+        (("bat",), True),
+        (("dev", "qa"), True),
+        (("dev", "bat"), True),
+        (("qa", "bat"), True),
+        (("dev", "qa", "bat"), False),
     ],
 )
-def test_test_evidence_requirements_by_change_class(change_class, environments, refused):
-    """Dev and QA are always required. BAT is required except for emergency and
-    hotfix changes.
+def test_test_evidence_requires_every_environment(environments, refused):
+    """Dev, QA and BAT are all required. Only the complete set is accepted.
 
     Layer: unit
-    Covers: REQ-1.2, REQ-1.2a
-    Why this layer: four classes crossed with three environments is a table, and
-    a table costs one function call per row here against one HTTP round trip per
-    row at the integration layer. One exemption case is repeated in integration
-    to prove the endpoint does not short circuit for emergencies.
+    Covers: REQ-1.2
+    Why this layer: this is the full subset table for three environments, and a
+    table costs one function call per row here against one HTTP round trip per
+    row at the integration layer. The accepting row is repeated in integration
+    to prove the endpoint reaches this rule at all.
     """
-    submission = valid_submission(
-        change_class=change_class,
-        test_evidence=evidence(*environments),
-    )
+    submission = valid_submission(test_evidence=evidence(*environments))
     assert ("REQ-1.2" in rules_broken(submission)) is refused
 
 
@@ -289,22 +283,18 @@ def test_stages_merged_at_the_same_instant_are_accepted():
     assert "REQ-1.5" not in rules_broken(submission)
 
 
-def test_emergency_change_still_needs_the_full_promotion_path():
-    """PINNED AMBIGUOUS DECISION, not a settled rule.
-
-    REQ-1.2a exempts emergency changes from the BAT sign off. It does not say
-    whether that reaches the BAT stage of the promotion path in REQ-1.5. The
-    service implements the narrow reading and this case pins it so it cannot
-    drift silently. See the open questions in `docs/test-design.md`.
+def test_a_change_missing_the_bat_stage_fails_the_promotion_path():
+    """The promotion path is checked stage by stage, and BAT is a stage of it.
 
     Layer: unit
-    Covers: REQ-1.2a, REQ-1.5
-    Why this layer: it pins an interpretation of rule logic, so it belongs
-    beside the logic. If the reading is corrected, this is the case that changes.
+    Covers: REQ-1.5
+    Why this layer: it is rule logic over an ordered list, so it belongs beside
+    the logic. REQ-1.2 and REQ-1.5 both involve BAT and this case proves they
+    are evaluated independently: evidence can be complete while the promotion
+    path is not.
     """
     submission = valid_submission(
-        change_class="emergency",
-        test_evidence=evidence("dev", "qa"),
+        test_evidence=evidence("dev", "qa", "bat"),
         merge_requests=merges(
             ("reg_sit", "2026-07-20T09:00:00+00:00"),
             ("int", "2026-07-22T09:00:00+00:00"),

@@ -21,16 +21,6 @@ class ReleaseType(StrEnum):
     SPA = "spa"
 
 
-class ChangeClass(StrEnum):
-    """Standard, normal, emergency and hotfix. Only the last two are exempt
-    from the BAT sign off requirement (REQ-1.2a)."""
-
-    STANDARD = "standard"
-    NORMAL = "normal"
-    EMERGENCY = "emergency"
-    HOTFIX = "hotfix"
-
-
 class Role(StrEnum):
     """On call roles. The required set depends on release type (REQ-1.6)."""
 
@@ -98,15 +88,12 @@ PROMOTION_PATH: tuple[PromotionStage, ...] = (
     PromotionStage.BAT,
 )
 
-# REQ-1.2. Evidence required from every change, whatever its class.
-BASE_TEST_EVIDENCE: tuple[TestEnvironment, ...] = (
+# REQ-1.2. Evidence required from every change. There are no exemptions: every
+# change is a standard change and carries the full evidence requirement.
+REQUIRED_TEST_EVIDENCE: tuple[TestEnvironment, ...] = (
     TestEnvironment.DEV,
     TestEnvironment.QA,
-)
-
-# REQ-1.2a. Classes exempt from the BAT sign off requirement, and only that one.
-BAT_EXEMPT_CLASSES: frozenset[ChangeClass] = frozenset(
-    {ChangeClass.EMERGENCY, ChangeClass.HOTFIX}
+    TestEnvironment.BAT,
 )
 
 # REQ-1.7. A fix version is clean when every ticket on it has landed in one of
@@ -143,8 +130,6 @@ def required_roles(release_type: ReleaseType) -> tuple[Role, ...]:
     return ON_CALL_MATRIX[release_type]
 
 
-def required_test_environments(change_class: ChangeClass) -> tuple[TestEnvironment, ...]:
-    """Environments that need passing evidence (REQ-1.2, REQ-1.2a)."""
-    if change_class in BAT_EXEMPT_CLASSES:
-        return BASE_TEST_EVIDENCE
-    return (*BASE_TEST_EVIDENCE, TestEnvironment.BAT)
+def required_test_environments() -> tuple[TestEnvironment, ...]:
+    """Environments that need passing evidence (REQ-1.2)."""
+    return REQUIRED_TEST_EVIDENCE

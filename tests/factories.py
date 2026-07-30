@@ -47,7 +47,6 @@ def valid_payload(**overrides: Any) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "title": "Payments service 4.2 sprint release",
         "release_type": "sprint",
-        "change_class": "normal",
         "scrum_team": "payments",
         "submitter": "a.rivera",
         "fix_version": "2026.07.1",

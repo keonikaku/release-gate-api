@@ -33,15 +33,18 @@ case exists for a different reason: to prove the violation reaches the caller in
 the response body with the rule ID attached. Testing all of REQ-1.1 through HTTP
 would buy nothing and cost a request per assertion.
 
-### REQ-1.2 and REQ-1.2a test evidence, and the emergency exemption
+### REQ-1.2 test evidence
 
-**Unit for the matrix, integration for one exemption case.** There are four
-change classes crossed with three environments and a passed flag, which is a
-table. Tables belong at the unit layer where a case costs a function call. The
-exemption (emergency and hotfix drop BAT and keep everything else) gets one
-integration case because it is the rule most likely to be broken by a change to
-the endpoint rather than to the rule, for instance by an endpoint that
-short circuits validation for emergencies.
+**Unit for the table, integration for one case.** Three environments crossed
+with a passed flag is a subset table, and tables belong at the unit layer where
+a case costs a function call rather than an HTTP round trip. One case is
+repeated at the integration layer because the failure mode it catches lives in
+the endpoint rather than the rule: an endpoint that short circuits on an earlier
+violation would never reach this rule, and no unit test can see that.
+
+The table is the full subset of three environments rather than a sampling. It is
+eight rows, every one of them cheap, and the exhaustive version removes the
+question of which omission was worth testing.
 
 ### REQ-1.3 team membership
 
@@ -161,15 +164,16 @@ saving boundary.
 
 Flagged rather than resolved by invention.
 
-**PENDING CLARIFICATION: does the emergency exemption reach REQ-1.5?**
-REQ-1.2a exempts emergency and hotfix changes from "the BAT sign off
-requirement" and says all other evidence is still required. That is unambiguous
-for REQ-1.2 test evidence. It is not clear whether an emergency change must still
-show a merge request at the BAT stage of the promotion path in REQ-1.5. The
-service implements the narrow reading: the exemption applies to REQ-1.2 only, and
-an emergency change still needs the full promotion path. A test pins that reading
-so it cannot drift silently, and the test says in its docstring that it is
-pinning an ambiguous decision rather than asserting a settled rule.
+**RESOLVED BY REMOVAL, 2026-07-29: does the emergency exemption reach REQ-1.5?**
+The question was whether an emergency change, exempt from the BAT sign off under
+REQ-1.2a, still had to show a merge request at the BAT stage of the promotion
+path in REQ-1.5. It was pinned by a test rather than answered.
+
+It is now moot. Keoni removed emergency and hotfix changes from the service
+entirely, so there is no exempt class and no exemption to scope. Recorded here
+because the distinction matters: the ambiguity was not resolved by choosing a
+reading, it was removed by deleting the feature that created it. If emergency
+changes ever return, the question returns with them unanswered.
 
 **PENDING CLARIFICATION: a fix version with no tickets recorded.**
 REQ-1.7 refuses a fix version carrying unresolved tickets. A fix version the

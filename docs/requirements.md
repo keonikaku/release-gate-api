@@ -28,7 +28,10 @@ A change request is rejected if any of the following is true.
 | REQ-1.6 | A role required for the release type has no named on-call for the implementation window. |
 | REQ-1.7 | The fix version contains open or unresolved tickets that could reach the branch. |
 
-**REQ-1.2a** Emergency and hotfix changes are exempt from the BAT sign-off requirement. All other evidence is still required.
+There are no exemptions. Every change carries the full evidence requirement. An
+earlier draft exempted emergency and hotfix changes from the BAT sign off; that
+class of change was removed from the service entirely on 2026-07-29, so the
+exemption no longer exists rather than having been resolved one way or the other.
 
 **REQ-1.5a** The promotion path is REG/SIT, then INT, then non-live/BAT, then production. Each stage must be evidenced in order.
 

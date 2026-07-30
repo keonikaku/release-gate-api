@@ -186,23 +186,24 @@ def test_a_spa_release_without_prod_support_is_accepted(client):
 
 
 @pytest.mark.endpoint(SUBMIT)
-def test_an_emergency_change_is_accepted_without_bat_evidence(client):
-    """The REQ-1.2a exemption, exercised through the API.
+def test_a_change_missing_bat_evidence_is_refused(client):
+    """REQ-1.2 through the API. There is no exemption from BAT.
 
     Layer: integration
-    Covers: REQ-1.2a
-    Why this layer: proves the endpoint does not short circuit validation for
-    emergency changes, which is a failure mode the unit layer cannot see.
+    Covers: REQ-1.2
+    Why this layer: proves the endpoint actually reaches this rule rather than
+    short circuiting on an earlier one, which the unit layer cannot see.
     """
     change_id = create(
         client,
-        change_class="emergency",
         test_evidence=[
             {"environment": "dev", "passed": True, "reference": "run-1"},
             {"environment": "qa", "passed": True, "reference": "run-2"},
         ],
     )
-    assert client.post(f"/changes/{change_id}/submit").status_code == 200
+    response = client.post(f"/changes/{change_id}/submit")
+    assert response.status_code == 400
+    assert any(v["rule"] == "REQ-1.2" for v in response.json()["detail"]["violations"])
 
 
 @pytest.mark.endpoint(SUBMIT)

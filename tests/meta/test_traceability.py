@@ -125,7 +125,6 @@ def test_the_named_rules_all_have_tests():
     expected = {
         "REQ-1.1",
         "REQ-1.2",
-        "REQ-1.2a",
         "REQ-1.3",
         "REQ-1.4",
         "REQ-1.5",

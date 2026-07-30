@@ -13,7 +13,6 @@ from datetime import datetime
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 from app.domain import (
-    ChangeClass,
     PromotionStage,
     ReleaseType,
     Role,
@@ -65,7 +64,6 @@ class ChangeSubmission(BaseModel):
 
     title: str = Field(min_length=1, max_length=200)
     release_type: ReleaseType
-    change_class: ChangeClass
     scrum_team: str = Field(min_length=1, max_length=80)
     submitter: str = Field(min_length=1, max_length=120)
     fix_version: str = Field(min_length=1, max_length=40)
