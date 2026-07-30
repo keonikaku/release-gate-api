@@ -27,6 +27,12 @@ from tools import evidence, readout, results, risk, runs, traceability
 from tools.render import esc, inline_markdown, outcome_pill, page, pill, time_tag
 
 REPO = "keonikaku/release-gate-api"
+
+#: The verify step that drives a served instance. Named here because three
+#: claims on the demo page are about this step specifically, and
+#: tests/meta/test_pipeline_contract.py fails the build if the workflow stops
+#: using this name, rather than letting the page quietly fall back.
+SMOKE_STEP = "Smoke the freshly built instance"
 REPO_URL = f"https://github.com/{REPO}"
 
 
@@ -340,6 +346,8 @@ def demo_page(data: Inputs) -> str:
         None,
     )
 
+    smoke_shape = smoke_only_failure(data, blocked)
+
     return f"""
 <h1>Two runs: one ships, one does not</h1>
 <p class="lede">The same workflow, twice. In the first everything passes and a
@@ -347,7 +355,7 @@ release is tagged. In the second verification fails, promotion never starts, and
 production stays where it was. The difference is enforced by GitHub, not
 described by this page.</p>
 
-{suite_passed_note(data, blocked)}
+{suite_passed_note(smoke_shape)}
 
 <h2>Run 1: the change lands and is promoted</h2>
 {run_card(promoted, "The suite passed, so promotion ran and tagged a release.")}
@@ -377,46 +385,74 @@ nothing by it. Only a failure on <code>main</code> isolates
 <a href="{REPO_URL}/releases">releases page</a> has no tag for that commit</td></tr>
 <tr><td class="k">The block is structural</td><td><code>needs: verify</code> in
 <a href="{REPO_URL}/blob/main/.github/workflows/post-merge.yml">post-merge.yml</a></td></tr>
-<tr><td class="k">The suite passed and verification still failed</td>
-<td>the step list of <code>Verify main</code> in that run: <code>Full suite</code>
-success, <code>Smoke the freshly built instance</code> failure</td></tr>
-<tr><td class="k">What the served instance actually did</td>
-<td>the run log of the smoke step, which prints each check and the response it
-got</td></tr>
+{smoke_claim_rows(smoke_shape)}
 </table>
 """
 
 
-def suite_passed_note(data: Inputs, blocked: dict | None) -> str:
-    """Say what actually failed in the blocked run, from that run's own record.
+def smoke_claim_rows(row: runs.RunRow | None) -> str:
+    """The two claim rows that are only true of a suite green, smoke red run.
 
-    The page used to say a test failed. None did. The suite was green and the
-    smoke step was what went red, and saying so is both true and the better
-    argument: a failing test is something the pre-merge gate catches first, and
-    this defect it could not.
+    They were unconditional literals, so they rendered even when there was no
+    blocked run at all: the card said the run had not happened yet while the
+    table below it described that run's step list.
+    """
+    if row is None:
+        return ""
+    return f"""<tr><td class="k">The suite passed and verification still failed</td>
+<td>the step list of <code>Verify main</code> in that run: <code>Full suite</code>
+success, <code>{esc(SMOKE_STEP)}</code> failure</td></tr>
+<tr><td class="k">What the served instance actually did</td>
+<td>the run log of the smoke step, which prints each check and the response it
+got</td></tr>"""
+
+
+def smoke_only_failure(data: Inputs, blocked: dict | None) -> runs.RunRow | None:
+    """The ledger row for a run that passed every case and failed the smoke step.
+
+    One predicate, three consumers: the narrative note and the two claim rows
+    that describe that specific shape. They were separate before, so the
+    narrative rendered on any failed step and the rows rendered unconditionally.
+    A future run where a real test fails would have published a paragraph
+    asserting the opposite of the truth, in confident derived prose.
+
+    Everything the paragraph claims has to be true for this to return a row:
+    the only failed step is the smoke step, a ledger row exists for the run, and
+    that row shows every case passing. Anything else returns None and the page
+    falls back to the derived step list, which is correct whatever happened.
     """
     if not blocked:
-        return ""
-
-    steps = failed_steps(blocked, "Verify")
-    if not steps:
-        return ""
+        return None
+    if failed_steps(blocked, "Verify") != [SMOKE_STEP]:
+        return None
 
     row = next(
         (r for r in data.ledger if r.run_id == str(blocked.get("databaseId", ""))),
         None,
     )
-    scale = (
-        f"All {row.passed} of {row.total} cases were green"
-        if row and row.total and row.passed == row.total
-        else "The suite was green"
-    )
-    failing = ", ".join(f"<code>{esc(step)}</code>" for step in steps)
+    if row is None or not row.total or row.passed != row.total:
+        return None
+    return row
+
+
+def suite_passed_note(row: runs.RunRow | None) -> str:
+    """Say what actually failed, when the run has the shape this paragraph
+    describes.
+
+    The page once said a test failed. None did. The suite was green and the
+    smoke step was what went red, and saying so is both true and the better
+    argument: a failing test is something the pre-merge gate catches first, and
+    this defect it could not.
+    """
+    if row is None:
+        return ""
+
     return f"""<div class="note"><strong>In run 2 the test suite passed.</strong>
-{esc(scale)}, every layer of the pyramid was green, and the health check
-answered 200. What went red was {failing}: the step that builds a fresh
-instance, serves it over HTTP and drives it as a client would. The first request
-that touched the database returned 500.
+All {row.passed} of {row.total} cases were green, every layer of the pyramid was
+green, and the health check answered 200. What went red was
+<code>{esc(SMOKE_STEP)}</code>: the step that builds a fresh instance, serves it
+over HTTP and drives it as a client would. The first request that touched the
+database returned 500.
 
 That is a stronger argument for the shape of this pipeline than a failing test
 would have been. A failing test is something the pre-merge gate catches before a
@@ -435,11 +471,12 @@ def step_summary(job: dict) -> str:
     steps = [s for s in job.get("steps", []) if s.get("conclusion") != "skipped"]
     if not steps:
         return ""
+    counted = f"{len(steps)} step" + ("" if len(steps) == 1 else "s")
     failed = [str(s.get("name")) for s in steps if s.get("conclusion") == "failure"]
     if not failed:
-        return f"{len(steps)} steps, all passed"
+        return f"{counted}, all passed"
     named = ", ".join(f"<code>{esc(name)}</code>" for name in failed)
-    return f"{len(steps)} steps, failed at {named}"
+    return f"{counted}, failed at {named}"
 
 
 def ref_condition_proof(blocked: dict | None) -> str:
@@ -510,6 +547,9 @@ def run_card(run: dict | None, meaning: str) -> str:
 <tr><td class="k">GitHub's record</td>
 <td><a href="{esc(run.get("url"))}">{esc(run.get("url"))}</a></td></tr>
 </table>
+<p class="dim">Step counts leave out steps GitHub skipped, so they read lower
+than the number of rows in the run's own view. A skipped step is one that never
+ran, and counting it would make a job look like it did more than it did.</p>
 <p class="dim">The publish job is what generates this page, so it is still
 running while the page is written and never reports its own conclusion here.
 GitHub's record, linked above, shows how it ended.</p>
