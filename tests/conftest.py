@@ -1,15 +1,25 @@
-"""Shared fixtures, and the rule that assigns every test its layer.
+"""Shared fixtures, the rule that assigns every test its layer, and the capture
+that turns a run into evidence.
 
 Layer markers are applied from the directory a test lives in, so a test cannot
 be filed under the wrong layer by forgetting a decorator. The docstring still
 has to say the layer out loud, and `tests/meta/test_layer_declarations.py` fails
 the build when the two disagree.
+
+**Evidence capture is off unless asked for.** Setting `RELEASE_GATE_EVIDENCE` to
+a directory makes every test that uses the `client` fixture record what it sent,
+what came back, what it claims to cover and whether it passed. CI sets it. A
+local `pytest` writes nothing, so the fast path stays fast and evidence only
+ever comes from a run someone asked to keep.
 """
 
 from __future__ import annotations
 
+import os
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -18,6 +28,7 @@ from app.clock import fixed_clock
 from app.main import app, get_clock, get_store
 from app.store import Store
 from tests.factories import PINNED_NOW
+from tools.evidence import CAPTURE_ENV, CapturedCase, Exchange, write
 
 LAYER_DIRECTORIES = {
     "unit": "unit",
@@ -27,6 +38,7 @@ LAYER_DIRECTORIES = {
 }
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+OUTCOME_KEY = pytest.StashKey[str]()
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
@@ -39,6 +51,55 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
                 break
 
 
+@pytest.hookimpl(wrapper=True)
+def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo):
+    """Remember what pytest decided, so captured evidence records the real
+    outcome rather than assuming the test passed."""
+    report = yield
+    if report.when == "call":
+        item.stash[OUTCOME_KEY] = report.outcome
+    return report
+
+
+class RecordingClient(TestClient):
+    """A test client that keeps what it sent and what came back.
+
+    Subclassed rather than wrapped because every verb funnels through
+    `request`, so one override catches all of them and no test has to opt in.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.exchanges: list[Exchange] = []
+
+    def request(self, method: str, url: Any, *args: Any, **kwargs: Any):
+        response = super().request(method, url, *args, **kwargs)
+        try:
+            body = response.json()
+        except ValueError:
+            body = None
+        self.exchanges.append(
+            Exchange(
+                method=str(method).upper(),
+                path=str(url),
+                request_body=kwargs.get("json"),
+                status=response.status_code,
+                response_body=body,
+            )
+        )
+        return response
+
+
+def _covers(doc: str) -> list[str]:
+    """Requirement IDs the test says it covers, read from its own docstring."""
+    import re  # noqa: PLC0415 - only needed on the capture path
+
+    match = re.search(r"^\s*Covers:(.*)$", doc, flags=re.MULTILINE)
+    if not match:
+        return []
+    return list(dict.fromkeys(re.findall(r"REQ-\d+(?:\.\d+[a-z]?)?", match.group(1))))
+
+
 @pytest.fixture
 def store(tmp_path: Path) -> Iterator[Store]:
     """A database per test. No shared state between cases, ever."""
@@ -48,7 +109,7 @@ def store(tmp_path: Path) -> Iterator[Store]:
 
 
 @pytest.fixture
-def client(store: Store) -> Iterator[TestClient]:
+def client(store: Store, request: pytest.FixtureRequest) -> Iterator[RecordingClient]:
     """The application with the store and the clock injected.
 
     The clock is pinned so `created_at` is an asserted value rather than a
@@ -56,13 +117,39 @@ def client(store: Store) -> Iterator[TestClient]:
     """
     app.dependency_overrides[get_store] = lambda: store
     app.dependency_overrides[get_clock] = lambda: fixed_clock(PINNED_NOW)
-    with TestClient(app) as test_client:
+    with RecordingClient(app) as test_client:
         yield test_client
+        _capture(request, test_client)
     app.dependency_overrides.clear()
 
 
+def _capture(request: pytest.FixtureRequest, client: RecordingClient) -> None:
+    """Write this test's exchanges, if capture is switched on."""
+    directory = os.environ.get(CAPTURE_ENV)
+    if not directory or not client.exchanges:
+        return
+
+    node = request.node
+    doc = node.function.__doc__ or ""
+    node_id = str(node.nodeid)
+    write(
+        directory,
+        CapturedCase(
+            node_id=node_id,
+            layer=next((p for p in node_id.split("/") if p in LAYER_DIRECTORIES), ""),
+            summary=doc.strip().splitlines()[0] if doc.strip() else "",
+            covers=_covers(doc),
+            outcome=node.stash.get(OUTCOME_KEY, "unknown"),
+            commit_sha=os.environ.get("GITHUB_SHA", ""),
+            run_id=os.environ.get("GITHUB_RUN_ID", ""),
+            captured_at=datetime.now(UTC).isoformat(),
+            exchanges=list(client.exchanges),
+        ),
+    )
+
+
 @pytest.fixture
-def openapi(client: TestClient) -> dict:
+def openapi(client: RecordingClient) -> dict:
     """The generated OpenAPI document, read from the running application."""
     response = client.get("/openapi.json")
     assert response.status_code == 200
