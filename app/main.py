@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 import uuid
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, status
@@ -33,6 +34,11 @@ from app.state import IllegalTransition, transition
 from app.store import Store
 
 DB_PATH_ENV = "RELEASE_GATE_DB"
+
+# Support a configurable data directory, so the database does not sit in the
+# working directory of whoever started the process.
+DATA_DIR_ENV = "RELEASE_GATE_DATA_DIR"
+DEFAULT_DATA_DIR = "/var/lib/release-gate"
 
 # Declared on every endpoint that reads a change, so the spec describes the
 # refusal paths and not only the happy one.
@@ -60,7 +66,9 @@ def get_store() -> Iterator[Store]:
     """
     global _store  # noqa: PLW0603 - one process, one connection
     if _store is None:
-        _store = Store(os.environ.get(DB_PATH_ENV, "release-gate.db"))
+        directory = Path(os.environ.get(DATA_DIR_ENV, DEFAULT_DATA_DIR))
+        configured = Path(os.environ.get(DB_PATH_ENV, "release-gate.db"))
+        _store = Store(directory / configured.name)
     yield _store
 
 
