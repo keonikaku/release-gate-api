@@ -8,6 +8,7 @@ fails the build rather than quietly removing the meaning of the badge.
 
 from __future__ import annotations
 
+import re
 import subprocess
 from pathlib import Path
 
@@ -22,11 +23,15 @@ PR_GATE = (WORKFLOWS / "pr-gate.yml").read_text(encoding="utf-8")
 def test_promotion_depends_on_verification():
     """`promote` carries `needs: verify`.
 
+    This guards the mechanism REQ-3 depends on. It does not cover REQ-3, and it
+    deliberately does not claim to: reading a workflow file is not the same as
+    observing that GitHub refused to promote. GAP-1 in the test design names this
+    case as the guard and still records REQ-3 as uncovered.
+
     Layer: meta
-    Covers: REQ-3.1, REQ-3.2
-    Why this layer: the rule is enforced by GitHub reading a YAML file, so the
-    only place it can be asserted is that file. No test of the service can see
-    it, which is exactly why REQ-3 is a declared gap in the suite.
+    Covers: none
+    Why this layer: the property is a line in a YAML file, so a file is the only
+    place it can be asserted. No test of the service can see it.
     """
     assert "needs: verify" in POST_MERGE
 
@@ -34,10 +39,15 @@ def test_promotion_depends_on_verification():
 def test_promotion_can_only_happen_from_main():
     """A run on any other branch exercises verification and stops.
 
+    This is also the reason a run on a `ci/**` branch cannot demonstrate the
+    promotion block: promotion is skipped there by this condition whatever
+    verification did, so the outcome is identical with a green suite. Only a
+    post-merge run on `main` carries that claim.
+
     Layer: meta
-    Covers: REQ-3.3
-    Why this layer: it is the guard that makes a deliberately failing branch run
-    safe, and it lives in the workflow rather than in the service.
+    Covers: none
+    Why this layer: it is the guard that keeps a deliberately failing branch run
+    from tagging anything, and it lives in the workflow rather than the service.
     """
     assert "if: github.ref == 'refs/heads/main'" in POST_MERGE
 
@@ -115,3 +125,37 @@ def test_generated_output_is_not_committed(directory):
         check=True,
     ).stdout.strip()
     assert tracked == "", f"{directory} is tracked: {tracked}"
+
+
+def test_the_pages_render_without_leaking_markdown(tmp_path):
+    """No page publishes literal bold markers or backticks in its prose.
+
+    Layer: meta
+    Covers: none
+    Why this layer: the gaps and the open questions are published verbatim from
+    the test design so they cannot drift from the document the build gate reads.
+    That is the right decision and it is what made raw markdown reach the page,
+    so the guard belongs on the built output rather than on the renderer alone.
+    """
+    from tools import build_site  # noqa: PLC0415 - only needed by this case
+
+    written = build_site.build(
+        reports=tmp_path / "no-reports",
+        ledger=tmp_path / "no-ledger.csv",
+        out=tmp_path / "site",
+        sha="0" * 40,
+        run_id="1",
+    )
+    pages = [path for path in written if path.suffix == ".html"]
+    assert pages
+
+    leaks = []
+    for path in pages:
+        body = path.read_text(encoding="utf-8").split('<main class="wrap">')[1]
+        # Code spans legitimately contain characters like the ci/** glob, so
+        # they are removed before the prose is checked.
+        prose = re.sub(r"<code>.*?</code>", "", body, flags=re.DOTALL)
+        for marker in ("**", "`"):
+            if marker in prose:
+                leaks.append(f"{path.name} publishes {marker!r}")
+    assert leaks == [], "\n".join(leaks)

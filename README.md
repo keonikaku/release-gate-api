@@ -101,8 +101,12 @@ Requirement to test, machine enforced in `tests/meta/test_traceability.py`:
 
 - A requirement with no test and no stated gap fails the build.
 - A test claiming a requirement that does not exist fails the build.
-- A stated gap that is quietly covered fails the build, so the gaps list cannot
-  go stale.
+- A declared gap that says it has no coverage fails the build the moment any test
+  claims one of its requirements. That is checked per gap, not "at least one gap
+  somewhere is still uncovered".
+- A gap declared without a written reason declares nothing, so pasting a
+  requirement ID under the heading cannot turn an untested rule into an accepted
+  one.
 
 **The table is not all green, and that is deliberate.** REQ-3 is enforced by the
 pipeline rather than by the service, so no test in this repository can assert it,

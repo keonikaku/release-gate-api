@@ -124,39 +124,90 @@ them as coverage of the service would inflate the number.
 ## Stated gaps
 
 What this suite does not cover, written before the suite existed so it is a
-design decision rather than an excuse. The traceability table reflects these.
+design decision rather than an excuse.
 
-**REQ-1.7 is partially covered.** The requirement says the fix version must not
-contain open or unresolved tickets *that could reach the branch*. The service
-checks the first half (tickets on the fix version that are not resolved or
-closed) and does not check the second half at all, because reachability is a
-question about version control and this service has no repository integration.
-Covering it would mean either building a fake that proves nothing or calling a
-real forge, which would make the badge depend on a third party. The traceability
-table records REQ-1.7 as PARTIAL rather than green.
+**Every entry below is machine checked.** Each one names the requirements it is
+about, whether they are untested or partly tested, and the reason. Three rules
+are enforced by `tests/meta/test_traceability.py` and fail the build:
 
-**REQ-3 is not covered by this suite at all.** REQ-3.1, REQ-3.2 and REQ-3.3 are
-enforced by the pipeline, not by the service, so no pytest case can assert them.
-The evidence for REQ-3 is the run graph of `post-merge.yml`: `promote` carries
-`needs: verify`, so a failing suite leaves `promote` skipped and the previously
-promoted tag in place. That is GitHub's record rather than this repository's
-claim, and it is linked from the traceability table instead of a test ID.
+1. An entry with no reason does not declare anything. Pasting a requirement ID
+   under this heading is not a gap declaration, so it cannot silently turn an
+   untested requirement into an accepted one.
+2. An entry that says `Coverage: none` must stay true. The moment any test
+   claims one of its requirements, the build fails and the entry has to be
+   rewritten or removed. That is per entry, not "at least one gap somewhere".
+3. An entry that says `Coverage: partial` must have at least one test on each
+   requirement it names, so a partial claim cannot cover a total absence.
 
-**Concurrency is not tested.** Two submissions of the same change at the same
-moment could both read Draft and both write Submitted. The service is
-single process with one SQLite connection, so the window is small, and no
-requirement states an idempotency or locking rule to test against. Recorded as a
-known hole rather than quietly left out.
+A gap may also name a test that guards the mechanism the requirement depends on.
+That is not coverage of the requirement and it is not counted as coverage
+anywhere. It is the difference between "we test this rule" and "we test that the
+thing enforcing this rule is still wired up".
 
-**No load, performance or security testing.** Out of scope in the requirements.
+### GAP-1: REQ-3 is enforced by the pipeline, so no test in this repository can assert it
 
-**The reference data is seeded, not integrated.** The roster and the ticket
-tracker are fixed tables. Tests prove the rules read them correctly. Nothing here
-proves the service would read a real directory or a real tracker correctly.
+**Requirements:** REQ-3, REQ-3.1, REQ-3.2, REQ-3.3
+**Coverage:** none
+**Guarded by:** tests/meta/test_pipeline_contract.py::test_promotion_depends_on_verification
+**Reason:** REQ-3 says a change reaches production only when the regression suite
+passes against the merged result. That is enforced by `promote` carrying
+`needs: verify` in the workflow, and by nothing inside the service. A pytest case
+can read the workflow file, which is what the guard above does, but reading a
+file is not the same as observing that GitHub refused to promote. The only
+evidence that carries the claim is a post-merge run on `main` in which
+verification failed and promotion did not run. A run on a `ci/**` branch cannot
+carry it, because promotion is also skipped there by the branch condition, so the
+outcome would be identical with a green suite.
 
-**Timezone handling is tested only through aware timestamps.** The schema
-refuses naive datetimes, which is asserted, but no case crosses a daylight
-saving boundary.
+### GAP-2: REQ-1.7 does not check whether a ticket could reach the branch
+
+**Requirements:** REQ-1.7
+**Coverage:** partial
+**Reason:** The requirement says the fix version must not contain open or
+unresolved tickets that could reach the branch. The service checks the first half
+(tickets on the fix version that are neither resolved nor closed) and does not
+check the second half at all, because reachability is a question about version
+control and this service has no repository integration. Covering it would mean
+building a fake that proves nothing, or calling a real forge, which would make
+the badge depend on a third party.
+
+### GAP-3: concurrent submissions are not tested
+
+**Requirements:** none
+**Coverage:** none
+**Reason:** Two submissions of the same change at the same moment could both read
+Draft and both write Submitted. The service is single process with one SQLite
+connection so the window is small, and no requirement states an idempotency or
+locking rule to test against. It is recorded as a known hole rather than left
+out quietly, because the absence of a requirement is not the same as the absence
+of a risk.
+
+### GAP-4: no load, performance or security testing
+
+**Requirements:** none
+**Coverage:** none
+**Reason:** All three are out of scope in the requirements, and the reasoning is
+in `docs/decisions/0005-no-browser-layer.md`. There is no stated throughput or
+latency criterion to test against, and a load test with an invented threshold
+measures nothing. Security scanning is not a claim this project makes.
+
+### GAP-5: the reference data is seeded, not integrated
+
+**Requirements:** none
+**Coverage:** none
+**Reason:** The team roster and the ticket tracker are fixed tables in
+`app/reference.py`. The tests prove the rules read them correctly. Nothing here
+proves the service would read a real directory or a real tracker correctly, and
+the seams where that would break (authentication, pagination, partial failure)
+have no coverage at all.
+
+### GAP-6: timezone handling is tested only through aware timestamps
+
+**Requirements:** none
+**Coverage:** none
+**Reason:** The schema refuses naive datetimes and that is asserted, but no case
+crosses a daylight saving boundary or an implementation window that spans one.
+The on call window comparison in REQ-1.6 is where that would matter.
 
 ---
 
@@ -175,8 +226,14 @@ because the distinction matters: the ambiguity was not resolved by choosing a
 reading, it was removed by deleting the feature that created it. If emergency
 changes ever return, the question returns with them unanswered.
 
-**PENDING CLARIFICATION: a fix version with no tickets recorded.**
-REQ-1.7 refuses a fix version carrying unresolved tickets. A fix version the
-tracker has never heard of carries none, so the current reading accepts it. The
-opposite reading (an unknown fix version is itself unevidenced and should be
-refused) is defensible. Pinned by a test, same treatment.
+**OPEN, DECIDED BY THE TEAM RATHER THAN BY THE AUTHOR: a fix version with no
+tickets recorded.** REQ-1.7 refuses a fix version carrying unresolved tickets. A
+fix version the tracker has never heard of carries none, so the current reading
+accepts it. The opposite reading is defensible and arguably stronger: an unknown
+fix version means REQ-1.7 cannot be evaluated at all, and a gate that cannot
+evaluate its own rule should not pass the change.
+
+The current behaviour is pinned by a test. **The call to leave it as accept was
+made by the team, not by the author of the requirements**, and it is recorded
+that way so it can be overturned without anyone having to dig for who decided
+it. If it is overturned, the test that pins it is the one that changes.
