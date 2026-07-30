@@ -260,6 +260,31 @@ def runs_chart(ledger: list[runs.RunRow]) -> str:
     )
 
 
+def green_suite_but_failed_note(ledger: list[runs.RunRow]) -> str:
+    """Explain a failed run whose case counts are all green.
+
+    A row reading `fail` beside a full pass count looks like a contradiction or
+    a broken ledger. It is neither: the run records the result of the whole
+    verify job, and the suite is one step of it. Saying so where the row is,
+    rather than hoping nobody notices, is the point of publishing the ledger.
+    """
+    puzzling = [
+        row
+        for row in ledger
+        if row.result == runs.RESULT_FAIL and row.total and row.passed == row.total
+    ]
+    if not puzzling:
+        return ""
+    numbers = ", ".join(f"run {row.run_number}" for row in puzzling)
+    return f"""<div class="note">{esc(numbers)} shows <code>fail</code> beside a
+full pass count, and that is not a contradiction. The result column is the
+outcome of the whole <code>verify</code> job. The suite is one step of it, and
+the other steps include building a fresh instance, serving it over HTTP and
+driving it as a client would. A run can pass every case and still fail
+verification, which is exactly what that row records and why the step exists.
+The <a href="demo.html">two run page</a> shows the step list.</div>"""
+
+
 def runs_table(ledger: list[runs.RunRow]) -> str:
     """The ledger, newest first."""
     if not ledger:
@@ -279,6 +304,7 @@ def runs_table(ledger: list[runs.RunRow]) -> str:
 <tr><th>#</th><th>Result</th><th>Commit</th><th>Branch</th><th>Started</th>
 <th>Passed</th><th>Promoted</th><th></th></tr>
 {body}</table>
+{green_suite_but_failed_note(ledger)}
 <p class="dim">The ledger is appended by the publish job and lives on the
 <code>gh-pages</code> branch, not on <code>main</code>. What the platform
 enforces there is that history cannot be rewritten or deleted: force pushes and
@@ -316,10 +342,12 @@ def demo_page(data: Inputs) -> str:
 
     return f"""
 <h1>Two runs: one ships, one does not</h1>
-<p class="lede">The same workflow, twice. In the first the suite passes and a
-release is tagged. In the second a test fails, promotion never starts, and
+<p class="lede">The same workflow, twice. In the first everything passes and a
+release is tagged. In the second verification fails, promotion never starts, and
 production stays where it was. The difference is enforced by GitHub, not
 described by this page.</p>
+
+{suite_passed_note(data, blocked)}
 
 <h2>Run 1: the change lands and is promoted</h2>
 {run_card(promoted, "The suite passed, so promotion ran and tagged a release.")}
@@ -338,7 +366,7 @@ the branch is <code>main</code>. On any other branch the second condition skips
 promotion whatever the suite did, so a failing branch run has the same run graph
 as a passing one. An earlier version of this page used a branch run and proved
 nothing by it. Only a failure on <code>main</code> isolates
-<code>needs: verify</code> as the cause.</div>
+<code>needs: verify</code> as the cause.{ref_condition_proof(blocked)}</div>
 
 <h2>What a reviewer can check without taking our word for it</h2>
 <table>
@@ -349,10 +377,102 @@ nothing by it. Only a failure on <code>main</code> isolates
 <a href="{REPO_URL}/releases">releases page</a> has no tag for that commit</td></tr>
 <tr><td class="k">The block is structural</td><td><code>needs: verify</code> in
 <a href="{REPO_URL}/blob/main/.github/workflows/post-merge.yml">post-merge.yml</a></td></tr>
-<tr><td class="k">The failing test is the one written for that rule</td>
-<td>the failure in the run log names the case</td></tr>
+<tr><td class="k">The suite passed and verification still failed</td>
+<td>the step list of <code>Verify main</code> in that run: <code>Full suite</code>
+success, <code>Smoke the freshly built instance</code> failure</td></tr>
+<tr><td class="k">What the served instance actually did</td>
+<td>the run log of the smoke step, which prints each check and the response it
+got</td></tr>
 </table>
 """
+
+
+def suite_passed_note(data: Inputs, blocked: dict | None) -> str:
+    """Say what actually failed in the blocked run, from that run's own record.
+
+    The page used to say a test failed. None did. The suite was green and the
+    smoke step was what went red, and saying so is both true and the better
+    argument: a failing test is something the pre-merge gate catches first, and
+    this defect it could not.
+    """
+    if not blocked:
+        return ""
+
+    steps = failed_steps(blocked, "Verify")
+    if not steps:
+        return ""
+
+    row = next(
+        (r for r in data.ledger if r.run_id == str(blocked.get("databaseId", ""))),
+        None,
+    )
+    scale = (
+        f"All {row.passed} of {row.total} cases were green"
+        if row and row.total and row.passed == row.total
+        else "The suite was green"
+    )
+    failing = ", ".join(f"<code>{esc(step)}</code>" for step in steps)
+    return f"""<div class="note"><strong>In run 2 the test suite passed.</strong>
+{esc(scale)}, every layer of the pyramid was green, and the health check
+answered 200. What went red was {failing}: the step that builds a fresh
+instance, serves it over HTTP and drives it as a client would. The first request
+that touched the database returned 500.
+
+That is a stronger argument for the shape of this pipeline than a failing test
+would have been. A failing test is something the pre-merge gate catches before a
+merge. This defect it could not, because every case in the suite injects its own
+database and nothing exercised the wiring that opens the real one.</div>"""
+
+
+def step_summary(job: dict) -> str:
+    """Which steps of a job passed and which did not, from GitHub's record.
+
+    A job outcome alone does not say what went wrong, and this page was
+    describing that in prose and getting it wrong. The step list is the run's
+    own answer, so a reader does not have to take the sentence beside it on
+    trust.
+    """
+    steps = [s for s in job.get("steps", []) if s.get("conclusion") != "skipped"]
+    if not steps:
+        return ""
+    failed = [str(s.get("name")) for s in steps if s.get("conclusion") == "failure"]
+    if not failed:
+        return f"{len(steps)} steps, all passed"
+    named = ", ".join(f"<code>{esc(name)}</code>" for name in failed)
+    return f"{len(steps)} steps, failed at {named}"
+
+
+def ref_condition_proof(blocked: dict | None) -> str:
+    """Show that the branch condition passed, so it cannot be the thing that
+    skipped promotion.
+
+    The publish job carries the same `github.ref == refs/heads/main` condition
+    as promote. If publish ran, that condition was satisfied on this run, and
+    the only remaining explanation for a skipped promote is `needs: verify`.
+    The proof is in the run's own job list rather than in this sentence.
+    """
+    if not blocked or job_result(blocked, "Publish") != "success":
+        return ""
+    return (
+        " And the branch condition can be ruled out from the same run: "
+        "<code>Publish the evidence</code> carries the identical "
+        "<code>github.ref</code> check and it ran to success, so the condition "
+        "was satisfied. What stopped promotion was the failed verification and "
+        "nothing else."
+    )
+
+
+def failed_steps(run: dict, prefix: str) -> list[str]:
+    """Names of the steps that failed in the job whose name starts with prefix."""
+    for job in run.get("jobs", []):
+        if not str(job.get("name", "")).startswith(prefix):
+            continue
+        return [
+            str(step.get("name"))
+            for step in job.get("steps", [])
+            if step.get("conclusion") == "failure"
+        ]
+    return []
 
 
 def job_result(run: dict, prefix: str) -> str:
@@ -372,12 +492,13 @@ def run_card(run: dict | None, meaning: str) -> str:
         )
     jobs = "".join(
         f"<tr><td class='k'>{esc(job.get('name'))}</td>"
-        f"<td>{outcome_pill(job.get('conclusion'), job.get('status', ''))}</td></tr>"
+        f"<td>{outcome_pill(job.get('conclusion'), job.get('status', ''))}</td>"
+        f"<td class='dim'>{step_summary(job)}</td></tr>"
         for job in run.get("jobs", [])
     )
     return f"""<div class="card">
 <table>
-<tr><th>Job</th><th>Outcome</th></tr>
+<tr><th>Job</th><th>Outcome</th><th>Steps</th></tr>
 {jobs}
 </table>
 <table>
