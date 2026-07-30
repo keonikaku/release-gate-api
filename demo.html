@@ -84,25 +84,36 @@ footer{border-top:1px solid var(--line);margin-top:56px;padding-top:20px;
 <main class="wrap">
 
 <h1>Two runs: one ships, one does not</h1>
-<p class="lede">The same workflow, twice. In the first the suite passes and a
-release is tagged. In the second a test fails, promotion never starts, and
+<p class="lede">The same workflow, twice. In the first everything passes and a
+release is tagged. In the second verification fails, promotion never starts, and
 production stays where it was. The difference is enforced by GitHub, not
 described by this page.</p>
+
+<div class="note"><strong>In run 2 the test suite passed.</strong>
+All 201 of 201 cases were green, every layer of the pyramid was green, and the health check
+answered 200. What went red was <code>Smoke the freshly built instance</code>: the step that builds a fresh
+instance, serves it over HTTP and drives it as a client would. The first request
+that touched the database returned 500.
+
+That is a stronger argument for the shape of this pipeline than a failing test
+would have been. A failing test is something the pre-merge gate catches before a
+merge. This defect it could not, because every case in the suite injects its own
+database and nothing exercised the wiring that opens the real one.</div>
 
 <h2>Run 1: the change lands and is promoted</h2>
 <div class="card">
 <table>
-<tr><th>Job</th><th>Outcome</th></tr>
-<tr><td class='k'>Verify main</td><td><span class="pill ok">success</span></td></tr><tr><td class='k'>Promote to production</td><td><span class="pill ok">success</span></td></tr><tr><td class='k'>Publish the evidence</td><td><span class="pill warn">in progress</span></td></tr>
+<tr><th>Job</th><th>Outcome</th><th>Steps</th></tr>
+<tr><td class='k'>Verify main</td><td><span class="pill ok">success</span></td><td class='dim'>12 steps, all passed</td></tr><tr><td class='k'>Promote to production</td><td><span class="pill ok">success</span></td><td class='dim'>6 steps, all passed</td></tr><tr><td class='k'>Publish the evidence</td><td><span class="pill warn">in progress</span></td><td class='dim'>13 steps, all passed</td></tr>
 </table>
 <table>
-<tr><td class="k">Commit</td><td class="mono">699cb80</td></tr>
-<tr><td class="k">Commit message</td><td>Merge pull request #5 from keonikaku/fix/store-wiring-regression</td></tr>
+<tr><td class="k">Commit</td><td class="mono">82ced03</td></tr>
+<tr><td class="k">Commit message</td><td>Merge pull request #6 from keonikaku/fix/demo-page-names-the-real-failure</td></tr>
 <tr><td class="k">Branch</td><td class="mono">main</td></tr>
-<tr><td class="k">Started</td><td><time class="ts" datetime="2026-07-30T06:05:33+00:00">29 Jul 2026, 20:05 HST</time></td></tr>
+<tr><td class="k">Started</td><td><time class="ts" datetime="2026-07-30T06:30:42+00:00">29 Jul 2026, 20:30 HST</time></td></tr>
 <tr><td class="k">What it means</td><td>The suite passed, so promotion ran and tagged a release.</td></tr>
 <tr><td class="k">GitHub's record</td>
-<td><a href="https://github.com/keonikaku/release-gate-api/actions/runs/30518519630">https://github.com/keonikaku/release-gate-api/actions/runs/30518519630</a></td></tr>
+<td><a href="https://github.com/keonikaku/release-gate-api/actions/runs/30519804217">https://github.com/keonikaku/release-gate-api/actions/runs/30519804217</a></td></tr>
 </table>
 <p class="dim">The publish job is what generates this page, so it is still
 running while the page is written and never reports its own conclusion here.
@@ -117,8 +128,8 @@ would be a real one, and reverted immediately afterwards. The mechanism is real
 either way, so labelling it costs nothing.</div>
 <div class="card">
 <table>
-<tr><th>Job</th><th>Outcome</th></tr>
-<tr><td class='k'>Verify main</td><td><span class="pill bad">failure</span></td></tr><tr><td class='k'>Publish the evidence</td><td><span class="pill ok">success</span></td></tr><tr><td class='k'>Promote to production</td><td><span class="pill warn">skipped</span></td></tr>
+<tr><th>Job</th><th>Outcome</th><th>Steps</th></tr>
+<tr><td class='k'>Verify main</td><td><span class="pill bad">failure</span></td><td class='dim'>10 steps, failed at <code>Smoke the freshly built instance</code></td></tr><tr><td class='k'>Publish the evidence</td><td><span class="pill ok">success</span></td><td class='dim'>14 steps, all passed</td></tr><tr><td class='k'>Promote to production</td><td><span class="pill warn">skipped</span></td><td class='dim'></td></tr>
 </table>
 <table>
 <tr><td class="k">Commit</td><td class="mono">9c2ba89</td></tr>
@@ -140,7 +151,7 @@ the branch is <code>main</code>. On any other branch the second condition skips
 promotion whatever the suite did, so a failing branch run has the same run graph
 as a passing one. An earlier version of this page used a branch run and proved
 nothing by it. Only a failure on <code>main</code> isolates
-<code>needs: verify</code> as the cause.</div>
+<code>needs: verify</code> as the cause. And the branch condition can be ruled out from the same run: <code>Publish the evidence</code> carries the identical <code>github.ref</code> check and it ran to success, so the condition was satisfied. What stopped promotion was the failed verification and nothing else.</div>
 
 <h2>What a reviewer can check without taking our word for it</h2>
 <table>
@@ -151,8 +162,12 @@ nothing by it. Only a failure on <code>main</code> isolates
 <a href="https://github.com/keonikaku/release-gate-api/releases">releases page</a> has no tag for that commit</td></tr>
 <tr><td class="k">The block is structural</td><td><code>needs: verify</code> in
 <a href="https://github.com/keonikaku/release-gate-api/blob/main/.github/workflows/post-merge.yml">post-merge.yml</a></td></tr>
-<tr><td class="k">The failing test is the one written for that rule</td>
-<td>the failure in the run log names the case</td></tr>
+<tr><td class="k">The suite passed and verification still failed</td>
+<td>the step list of <code>Verify main</code> in that run: <code>Full suite</code>
+success, <code>Smoke the freshly built instance</code> failure</td></tr>
+<tr><td class="k">What the served instance actually did</td>
+<td>the run log of the smoke step, which prints each check and the response it
+got</td></tr>
 </table>
 
 <footer>
@@ -160,7 +175,7 @@ Every page here is generated by the post-merge workflow from the artifacts of a
 real run. No number on this site is typed in. The sentences that explain what
 you are looking at are written by a person; every figure, result, timestamp and
 link beside them comes from the run.
-Built from commit <code>699cb80</code> at <time class="ts" datetime="2026-07-30T06:06:26.243912+00:00">29 Jul 2026, 20:06 HST</time>.
+Built from commit <code>82ced03</code> at <time class="ts" datetime="2026-07-30T06:31:38.604336+00:00">29 Jul 2026, 20:31 HST</time>.
 <br>
 <a href="https://github.com/keonikaku/release-gate-api">Repository</a> &middot;
 <a href="https://github.com/keonikaku/release-gate-api/actions/workflows/post-merge.yml">Run history</a>
