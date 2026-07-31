@@ -494,15 +494,20 @@ def defect_page(data: Inputs) -> str:
 
     return f"""
 <h1>Defect reports</h1>
-<p class="lede">A defect found by this pipeline, written up the way it would be
-handed to a development team. Requirement, test case and defect all reference
-each other, so a reader can follow any one of them to the other two.</p>
+<p class="lede">Defects found against this service, written the way a tester
+raises one: enough to reproduce it and decide what to do about it, and nothing
+that belongs in a stand up. One is closed. One is open and deferred, with a
+failing test carrying it.</p>
 
 <div class="note"><strong>This is a defect report in Jira export format. It was
 not exported from a Jira instance</strong>, because this project has none. The
-fields, the structure and the content are what would be raised against a real
-tracker, and every identifier in it (commits, runs, pull requests) links to the
-real record on GitHub.</div>
+fields and the structure are what would be raised against a real tracker, and
+the attachment on each report is the request and response captured by the suite
+rather than a screenshot pasted in.</div>
+
+<p>Each defect is linked to the test case that fails because of it and the
+requirement that case belongs to, on the
+<a href="traceability.html">traceability page</a>.</p>
 
 {"".join(defect_record(report, data) for report in reports)}
 """
