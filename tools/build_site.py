@@ -282,9 +282,9 @@ stops there does not say what the tests missed, and what was added because of it
 <div class="note">DEF-001 traces to no single requirement, and saying so is more
 useful than forcing a mapping. The defect made every endpoint that touches stored
 state return 500, so every requirement the service enforces was unreachable while
-it was live. What it traces to precisely is a gap in coverage: no case exercised
-the wiring that opens the real database, which is why 201 passing tests could not
-see it.</div>"""
+it was live. What it traces to precisely is the regression case in the fourth
+column, which is the only case in the suite that exercises the wiring the defect
+was in.</div>"""
 
 
 def defect_key(data: Inputs) -> str:

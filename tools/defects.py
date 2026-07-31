@@ -31,6 +31,7 @@ SHA = re.compile(r"^[0-9a-f]{7,40}$")
 #: argue against.
 REQUIRED_FIELDS = (
     "Issue type",
+    "Accounts impacted",
     "Summary",
     "Priority",
     "Severity",
@@ -45,14 +46,22 @@ REQUIRED_FIELDS = (
 )
 
 REQUIRED_SECTIONS = (
-    "Endpoints and consumers impacted",
+    "Scope of impact",
     "Errant behaviour",
     "Expected behaviour",
     "Steps to reproduce",
     "Root cause",
-    "Coverage gap analysis",
     "Detection",
     "Resolution",
+)
+
+#: Fields that are part of the template and may honestly have no value on a
+#: given defect. A report is a form as well as a record: a field carrying N/A
+#: shows the structure exists and that this defect did not need it, which is
+#: more useful than a field stretched to fit.
+MAY_BE_NOT_APPLICABLE = (
+    "Accounts impacted",
+    "Existing case that should have caught it",
 )
 
 #: Fields whose value is a commit SHA, resolved against GitHub at build time.
