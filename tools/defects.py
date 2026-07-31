@@ -76,8 +76,6 @@ DISPLAY_FIELDS = (
     "Labels",
     "Affects version",
     "Fix version",
-    "Deferral approved by",
-    "Deferral note",
 )
 
 #: Required fields the renderer shows as the heading of the record rather than
@@ -92,8 +90,15 @@ LINKED_FIELDS = (
 )
 
 
+#: A ticket carries what a tester needs to reproduce a defect and act on it.
+#: Why it was deferred, what the risk is and who agreed to carry it are a
+#: conversation the team has, not fields. A field that explains why rather than
+#: what does not belong here, which is why root cause, coverage analysis,
+#: detection, resolution and the deferral rationale are all absent.
+#:
 #: Statuses that mean the defect is still live. A deferred defect is open: the
-#: decision to ship without fixing it is a risk acceptance, not a closure.
+#: status and the fix version record the decision, which is how a tracker
+#: records it too.
 OPEN_STATUSES = ("Open", "Deferred", "In progress", "Reopened")
 
 

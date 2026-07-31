@@ -521,17 +521,16 @@ def test_a_database_failure_surfaces_as_a_500(caller_client, store):
     strict=True,
     reason=(
         "DEF-002: the gate accepts an implementation window that ends before it "
-        "starts. Deferred to 0.2.0 by the business. Strict, so this fails the "
-        "build if the defect is fixed and nobody updates the report."
+        "starts. Deferred to 0.2.0. Strict, so this fails the build if the "
+        "defect is fixed and nobody updates the report."
     ),
 )
 def test_an_implementation_window_that_ends_before_it_starts_is_refused(client):
     """Submit a change whose implementation window ends before it starts.
 
-    This case fails today. It is tracked as DEF-002 and the fix is deferred to
-    the next release, so it is marked as an expected failure rather than
-    deleted or skipped. It still runs on every build and it still makes a real
-    request.
+    This case fails today. It is tracked as DEF-002, deferred to 0.2.0, and
+    marked as an expected failure rather than deleted or skipped. It still runs
+    on every build and it still makes a real request.
 
     Case: API-36
     Expects: 400

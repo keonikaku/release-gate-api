@@ -176,6 +176,7 @@ a database that is gone. Each row states the check in full, so
 
 <h2>The walkthrough</h2>
 {walkthrough_table(walk)}
+{deferral_line(data)}
 <p class="dim">These {len(walk)} are a selected path through the suite. The full
 {len(cases)} cases are in the repository and every one of them runs on every
 push. The <a href="evidence.html">request and response log</a> has all of them
@@ -194,25 +195,30 @@ just the walkthrough.</p>
 
 
 def known_defect_note(data: Inputs) -> str:
-    """Say that one row is a live bug, and say what about it is a decision."""
+    """Say that one row is a live bug, and what about it is a decision.
+
+    Two sentences. The reasoning behind the deferral is a conversation the team
+    has, not something the page argues.
+    """
     open_reports = defects.open_defects()
     if not open_reports:
         return ""
     report = open_reports[0]
-    fix_version = report.fields.get("Fix version", "")
-    return f"""<div class="note"><strong>One case below does not pass, and that is
-the point of it.</strong> {esc(report.key)} is a real defect in this service: the
-gate accepts a change whose implementation window ends before it starts. The case
-that catches it runs on every build, fails on every build, and is marked as an
-expected failure against the defect, so it reports the bug without blocking the
-release. Fixing the bug without closing the report also fails the build, which is
-what stops an expected failure becoming a test nobody looks at again.
+    return f"""<div class="note"><strong>One row below does not pass.</strong>
+{esc(report.key)} is a real defect in this service, found rather than added. The
+decision to leave it open is deliberate, so this page shows a defect being
+carried rather than only defects already closed.</div>"""
 
-<br><br>The bug is real and was found in this service rather than added to it.
-<strong>What is deliberate is the decision to leave it open</strong> and defer the
-fix to {esc(fix_version)}, so that this page shows a defect being reported and
-carried rather than only defects already closed. That deferral is recorded on the
-<a href="defects.html">report</a> with who accepted it and why.</div>"""
+
+def deferral_line(data: Inputs) -> str:
+    """One line under the table saying where the open defect stands."""
+    open_reports = defects.open_defects()
+    if not open_reports:
+        return ""
+    report = open_reports[0]
+    version = report.fields.get("Fix version", "")
+    return f"""<p><a class="mono" href="defects.html">{esc(report.key)}</a>
+{esc(report.summary)}. {pill("deferred to " + version, "warn")}</p>"""
 
 
 def walkthrough_table(walk: tuple) -> str:
