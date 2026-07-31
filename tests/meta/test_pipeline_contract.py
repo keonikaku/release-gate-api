@@ -211,3 +211,119 @@ def test_the_case_list_covers_the_status_codes_the_page_explains():
     declared = {case.expects for case in api_cases.build()}
     missing = sorted(set(api_cases.STATUS_MEANING) - declared)
     assert missing == [], f"status codes explained but never exercised: {missing}"
+
+
+def test_every_defect_report_carries_the_required_fields():
+    """A report with holes in it does not publish.
+
+    Layer: meta
+    Covers: none
+    Why this layer: the page argues that this is what a handover looks like, so
+    a missing field is a defect in the argument as well as in the document.
+    """
+    from tools import defects  # noqa: PLC0415 - only needed by this case
+
+    reports = defects.load()
+    assert reports, "no defect reports were parsed"
+    problems = [problem for report in reports for problem in report.problems]
+    assert problems == [], "\n".join(problems)
+
+
+def test_every_open_defect_names_a_failing_test_that_exists():
+    """An open defect points at the case that currently fails because of it.
+
+    Layer: meta
+    Covers: none
+    Why this layer: that link is what makes the defect live rather than a note.
+    It is also what the pipeline reads to decide whether an expected failure is
+    tracked, so a stale node ID would turn a tracked failure into an untracked
+    one silently.
+    """
+    from tools import defects, traceability  # noqa: PLC0415 - only needed here
+
+    known = {case.node_id for case in traceability.test_cases()}
+    for defect in defects.open_defects():
+        assert defect.failing_test, f"{defect.key} is open and names no failing test"
+        assert defect.failing_test in known, (
+            f"{defect.key} names a test that does not exist: {defect.failing_test}"
+        )
+
+
+def test_every_expected_failure_is_tracked_by_an_open_defect():
+    """No test is marked as an expected failure without a defect behind it.
+
+    Layer: meta
+    Covers: none
+    Why this layer: an xfail with no defect is a test nobody will look at
+    again. This reads the markers in the source and the reports on disk, and
+    neither is visible from a run.
+    """
+    import re as regex  # noqa: PLC0415 - only needed by this case
+
+    from tools import defects  # noqa: PLC0415 - only needed by this case
+
+    tracked = defects.by_failing_test()
+    marked = []
+    for path in (REPO_ROOT / "tests").rglob("test_*.py"):
+        text = path.read_text(encoding="utf-8")
+        for match in regex.finditer(r"@pytest\.mark\.xfail", text):
+            following = text[match.start() : match.start() + 900]
+            name = regex.search(r"def (test_\w+)", following)
+            if name:
+                marked.append(f"{path.relative_to(REPO_ROOT)}::{name.group(1)}")
+
+    untracked = sorted(set(marked) - set(tracked))
+    assert untracked == [], f"expected failures with no open defect: {untracked}"
+
+
+def test_every_defect_names_a_regression_test_that_exists():
+    """The case a defect says now covers it is a real case.
+
+    Layer: meta
+    Covers: none
+    Why this layer: the traceability matrix links the defect to that node ID. A
+    rename would leave the matrix pointing at nothing, which is the failure the
+    matrix exists to prevent.
+    """
+    from tools import defects, traceability  # noqa: PLC0415 - only needed here
+
+    known = {case.node_id for case in traceability.test_cases()}
+    missing = [node_id for node_id in defects.referenced_tests() if node_id not in known]
+    assert missing == [], f"defect reports name tests that do not exist: {missing}"
+
+
+def test_the_defect_page_says_it_is_a_format_not_an_export():
+    """The page does not imply a Jira instance that does not exist.
+
+    Layer: meta
+    Covers: none
+    Why this layer: it is the same class of care as labelling a practice
+    exercise, and the sentence is easy to lose in an edit.
+    """
+    from tools import build_site  # noqa: PLC0415 - only needed by this case
+
+    page = build_site.defect_page(
+        build_site.gather(REPO_ROOT / "no-reports", REPO_ROOT / "no-ledger.csv", "", "")
+    )
+    assert "not exported from a Jira instance" in page
+
+
+def test_every_required_defect_field_reaches_the_page():
+    """A field the report requires is a field the reader sees.
+
+    Layer: meta
+    Covers: none
+    Why this layer: the parser and the renderer keep separate lists of fields,
+    and the first version of this page parsed Accounts impacted correctly and
+    then never printed it. A required field that renders nowhere is worse than
+    a missing one, because the document looks complete.
+    """
+    from tools import defects  # noqa: PLC0415 - only needed by this case
+
+    rendered = (
+        set(defects.DISPLAY_FIELDS)
+        | set(defects.LINKED_FIELDS)
+        | set(defects.HEADING_FIELDS)
+    )
+    missing = sorted(set(defects.REQUIRED_FIELDS) - rendered)
+    assert missing == [], f"required fields that no page renders: {missing}"

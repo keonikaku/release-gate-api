@@ -15,6 +15,7 @@ PASSED = "passed"
 FAILED = "failed"
 SKIPPED = "skipped"
 ERROR = "error"
+XFAILED = "xfailed"
 
 
 @dataclass(frozen=True)
@@ -60,6 +61,11 @@ class RunResults:
         return sum(1 for case in self.cases if case.outcome == SKIPPED)
 
     @property
+    def expected_failures(self) -> tuple[CaseResult, ...]:
+        """Cases that ran, failed, and are tracked against a known defect."""
+        return tuple(case for case in self.cases if case.outcome == XFAILED)
+
+    @property
     def green(self) -> bool:
         """True when every case that ran passed and at least one case ran."""
         return self.total > 0 and self.failed == 0
@@ -73,7 +79,7 @@ class RunResults:
         instances = [c for c in self.cases if c.base_node_id == base_node_id]
         if not instances:
             return None
-        for outcome in (ERROR, FAILED, SKIPPED):
+        for outcome in (ERROR, FAILED, XFAILED, SKIPPED):
             if any(case.outcome == outcome for case in instances):
                 return outcome
         return PASSED
@@ -97,12 +103,18 @@ def parse_junit(path: str | Path) -> RunResults:
             classname = case.get("classname", "")
             name = case.get("name", "")
             outcome = PASSED
+            skipped = case.find("skipped")
             if case.find("failure") is not None:
                 outcome = FAILED
             elif case.find("error") is not None:
                 outcome = ERROR
-            elif case.find("skipped") is not None:
-                outcome = SKIPPED
+            elif skipped is not None:
+                # pytest records an expected failure as a skip with a type of
+                # pytest.xfail. The two mean opposite things: a skip did not
+                # run, an expected failure ran and failed against a tracked
+                # defect. Collapsing them would let a skip hide behind a defect
+                # ID, or a tracked defect fail the no-skips criterion.
+                outcome = XFAILED if skipped.get("type") == "pytest.xfail" else SKIPPED
             cases.append(
                 CaseResult(
                     node_id=f"{_classname_to_path(classname)}::{name}",

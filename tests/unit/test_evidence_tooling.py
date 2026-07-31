@@ -16,6 +16,7 @@ import pytest
 from tools import (
     api_cases,
     build_site,
+    defects,
     evidence,
     provenance,
     readout,
@@ -255,6 +256,7 @@ def test_all_five_criteria_met_gives_a_go():
         claimed_endpoints={"GET /healthz": ["tests/integration/test_api.py::test_x"]},
         claimed_requirements=(),
         open_blockers=0,
+        tracked_failures={},
         commit_sha="abc1234",
         generated_at=datetime.now(UTC).isoformat(),
         run_id="1",
@@ -278,6 +280,7 @@ def test_an_empty_run_is_not_a_go():
         claimed_endpoints={"GET /healthz": ["x"]},
         claimed_requirements=(),
         open_blockers=0,
+        tracked_failures={},
         commit_sha="abc1234",
         generated_at=datetime.now(UTC).isoformat(),
         run_id="1",
@@ -566,12 +569,13 @@ def test_the_readout_json_names_every_criterion(tmp_path):
         claimed_endpoints={},
         claimed_requirements=(),
         open_blockers=None,
+        tracked_failures={},
         commit_sha="abc",
         generated_at="2026-07-30T00:00:00+00:00",
         run_id="1",
     )
     payload = json.loads(json.dumps({"criteria": [c.id for c in decision.criteria]}))
-    assert payload["criteria"] == ["C1", "C2", "C3", "C4", "C5"]
+    assert payload["criteria"] == ["C1", "C2", "C3", "C4", "C5", "C6"]
     assert decision.decision == readout.NO_GO
 
 
@@ -951,6 +955,8 @@ def inputs_with(ledger: list[runs.RunRow], gh_runs: list[dict]) -> object:
         openapi=None,
         gh_runs=gh_runs,
         failure_log=None,
+        commits={},
+        pulls={},
         production=None,
         open_blockers=None,
         sha="a" * 40,
@@ -1245,3 +1251,128 @@ def test_the_published_failure_numbers_come_out_of_the_log():
         "actual": "500",
     }
     assert api_cases.parse_smoke_failure(["ok    healthz responds"]) is None
+
+
+# Defect reports ---------------------------------------------------------------
+
+
+def write_defect(tmp_path, body: str):
+    """A defect report file, for the parser cases below."""
+    path = tmp_path / "DEF-001.md"
+    path.write_text(body, encoding="utf-8")
+    return path
+
+
+def test_a_defect_report_parses_into_fields_and_sections(tmp_path):
+    """The report is data, so the page renders it rather than restating it.
+
+    Layer: unit
+    Covers: none
+    Why this layer: the file is what a person edits, and everything the page
+    shows about a defect passes through this parser.
+    """
+    path = write_defect(
+        tmp_path,
+        "# DEF-001\n\n**Issue type:** Bug\n**Summary:** A thing broke\n\n"
+        "## Root cause\n\nIt was wired wrong.\n",
+    )
+    report = defects.parse(path)
+    assert report.key == "DEF-001"
+    assert report.fields["Issue type"] == "Bug"
+    assert report.summary == "A thing broke"
+    assert report.sections["Root cause"] == "It was wired wrong."
+
+
+def test_a_report_missing_a_required_field_is_reported(tmp_path):
+    """Every required field is named when it is absent.
+
+    Layer: unit
+    Covers: none
+    Why this layer: the page claims this is what a complete handover looks
+    like, so incompleteness has to fail rather than publish quietly.
+    """
+    report = defects.parse(write_defect(tmp_path, "# DEF-001\n\n**Issue type:** Bug\n"))
+    problems = report.problems
+    assert any("Priority" in problem for problem in problems)
+    assert any("Steps to reproduce" in problem for problem in problems)
+
+
+def test_the_gap_between_two_commits_is_derived():
+    """The page states how far apart the two commits were.
+
+    Layer: unit
+    Covers: none
+    Why this layer: at minute resolution the two timestamps render identically,
+    which leaves a published claim the reader cannot check from the values.
+    """
+    gap = build_site.seconds_between("2026-07-30T02:19:21Z", "2026-07-30T02:19:50Z")
+    assert "29 seconds later" in gap
+    assert build_site.seconds_between("2026-07-30T02:19:50Z", "2026-07-30T02:19:21Z") == ""
+
+
+def test_an_expected_failure_is_not_counted_as_a_skip(tmp_path):
+    """A tracked failure ran and failed. A skip did not run at all.
+
+    Layer: unit
+    Covers: none
+    Why this layer: pytest records both as a skip in the report, and the
+    readout has a criterion that fails on skips. Collapsing them would either
+    let a skip hide behind a defect ID or make a tracked defect fail the build.
+    """
+    path = tmp_path / "junit.xml"
+    path.write_text(
+        '<testsuites><testsuite name="pytest" tests="2" time="1">'
+        '<testcase classname="tests.integration.test_api" name="test_known" time="0.1">'
+        '<skipped type="pytest.xfail" message="DEF-002"/></testcase>'
+        '<testcase classname="tests.integration.test_api" name="test_skipped" time="0.1">'
+        '<skipped type="pytest.skip" message="no server"/></testcase>'
+        "</testsuite></testsuites>",
+        encoding="utf-8",
+    )
+    parsed = results.parse_junit(path)
+    assert parsed.skipped == 1
+    assert len(parsed.expected_failures) == 1
+    assert parsed.expected_failures[0].function == "test_known"
+
+
+def test_an_untracked_expected_failure_blocks_the_go():
+    """An xfail with no open defect behind it is not acceptable.
+
+    Layer: unit
+    Covers: none
+    Why this layer: this is the guard that keeps an expected failure a decision
+    rather than a way to silence a test.
+    """
+    failing = results.RunResults(
+        cases=(
+            results.CaseResult(
+                node_id="tests/integration/test_api.py::test_known",
+                function="test_known",
+                outcome=results.XFAILED,
+                duration=0.1,
+            ),
+        ),
+        duration=0.1,
+    )
+    untracked = readout.known_defect_criterion(failing, {})
+    assert untracked.met is False
+    assert "not tracked" in untracked.detail
+
+    tracked = readout.known_defect_criterion(
+        failing, {"tests/integration/test_api.py::test_known": object()}
+    )
+    assert tracked.met is True
+
+
+def test_a_run_with_no_expected_failures_meets_the_criterion():
+    """The criterion is not a requirement to have one.
+
+    Layer: unit
+    Covers: none
+    Why this layer: a suite with nothing deferred should pass it, and the
+    wording of the detail line is what a reader sees on the dashboard.
+    """
+    clean = results.RunResults(cases=(), duration=0.0)
+    criterion = readout.known_defect_criterion(clean, {})
+    assert criterion.met is True
+    assert "No expected failures" in criterion.detail

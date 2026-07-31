@@ -55,6 +55,7 @@ WALKTHROUGH: tuple[str, ...] = (
     "test_a_malformed_payload_is_a_schema_error_not_a_refusal",
     "test_an_unknown_field_is_rejected_by_the_schema",
     "test_a_database_failure_surfaces_as_a_500",
+    "test_an_implementation_window_that_ends_before_it_starts_is_refused",
 )
 
 #: The pair worth explaining to anyone reading the list. Most services collapse
@@ -109,6 +110,11 @@ class ApiCase:
     @property
     def passed(self) -> bool:
         return self.outcome == "passed"
+
+    @property
+    def is_known_defect(self) -> bool:
+        """True when this case fails on purpose against a tracked defect."""
+        return self.outcome in ("xfailed", "expected failure")
 
     @property
     def agrees(self) -> bool:

@@ -98,9 +98,11 @@ document.querySelectorAll('time.ts').forEach(function(el){
   var when = new Date(iso);
   if (isNaN(when)) { return; }
   var zone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'local time';
-  var shown = when.toLocaleString(undefined, {
+  var options = {
     day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'
-  });
+  };
+  if (el.getAttribute('data-seconds') === 'true') { options.second = '2-digit'; }
+  var shown = when.toLocaleString(undefined, options);
   var seconds = (Date.now() - when.getTime()) / 1000;
   var units = [['year',31536000],['month',2592000],['day',86400],['hour',3600],
                ['minute',60]];
@@ -117,6 +119,7 @@ document.querySelectorAll('time.ts').forEach(function(el){
 # subject of the site, and the order says so.
 NAV = (
     ("index.html", "API tests"),
+    ("defects.html", "Defect report"),
     ("evidence.html", "Request and response log"),
     ("api.html", "The API"),
     ("pipeline.html", "Pipeline"),
@@ -141,17 +144,27 @@ def parse_iso(value: str) -> datetime | None:
         return None
 
 
-def time_tag(value: str | datetime | None, fallback: str = "not recorded") -> str:
-    """A timestamp a reader can act on, in Honolulu time, upgraded by script."""
+def time_tag(
+    value: str | datetime | None,
+    fallback: str = "not recorded",
+    seconds: bool = False,
+) -> str:
+    """A timestamp a reader can act on, in Honolulu time, upgraded by script.
+
+    `seconds` matters where the claim is about ordering. Two commits half a
+    minute apart render identically at minute resolution, which leaves a
+    published claim that the reader cannot check from the values beside it.
+    """
     moment = parse_iso(value) if isinstance(value, str) else value
     if moment is None:
         return f'<span class="dim">{esc(fallback)}</span>'
     if moment.tzinfo is None:
         moment = moment.replace(tzinfo=UTC)
     local = moment.astimezone(HONOLULU)
+    shown = f"{local:%d %b %Y, %H:%M:%S}" if seconds else f"{local:%d %b %Y, %H:%M}"
     return (
-        f'<time class="ts" datetime="{esc(moment.isoformat())}">'
-        f"{local:%d %b %Y, %H:%M} HST</time>"
+        f'<time class="ts" datetime="{esc(moment.isoformat())}" '
+        f'data-seconds="{str(seconds).lower()}">{shown} HST</time>'
     )
 
 

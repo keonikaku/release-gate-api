@@ -514,3 +514,38 @@ def test_a_database_failure_surfaces_as_a_500(caller_client, store):
     store.close()
     response = caller_client.post("/changes", json=valid_payload())
     assert response.status_code == 500
+
+
+@pytest.mark.endpoint(SUBMIT)
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "DEF-002: the gate accepts an implementation window that ends before it "
+        "starts. Deferred to 0.2.0. Strict, so this fails the build if the "
+        "defect is fixed and nobody updates the report."
+    ),
+)
+def test_an_implementation_window_that_ends_before_it_starts_is_refused(client):
+    """Submit a change whose implementation window ends before it starts.
+
+    This case fails today. It is tracked as DEF-002, deferred to 0.2.0, and
+    marked as an expected failure rather than deleted or skipped. It still runs
+    on every build and it still makes a real request.
+
+    Case: API-36
+    Expects: 400
+    Layer: integration
+    Covers: REQ-1
+    Why this layer: the window is two fields that are individually valid and
+    only wrong when compared, so the check belongs where a submission is
+    assembled and judged as a whole.
+    """
+    change_id = create(
+        client,
+        implementation_start="2026-08-02T02:00:00+00:00",
+        implementation_end="2026-08-01T22:00:00+00:00",
+    )
+    response = client.post(f"/changes/{change_id}/submit")
+    assert response.status_code == 400, (
+        "a change cannot be implemented before it starts, and the gate accepted it"
+    )

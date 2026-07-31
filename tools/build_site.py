@@ -19,12 +19,30 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from tools import api_cases, evidence, readout, results, risk, runs, traceability
-from tools.render import esc, inline_markdown, outcome_pill, page, pill, time_tag
+from tools import (
+    api_cases,
+    defects,
+    evidence,
+    readout,
+    results,
+    risk,
+    runs,
+    traceability,
+)
+from tools.render import (
+    esc,
+    inline_markdown,
+    outcome_pill,
+    page,
+    parse_iso,
+    pill,
+    time_tag,
+)
 
 REPO = "keonikaku/release-gate-api"
 
@@ -48,6 +66,8 @@ class Inputs:
     openapi: dict | None
     gh_runs: list[dict]
     failure_log: dict | None
+    commits: dict
+    pulls: dict
     production: dict | None
     open_blockers: int | None
     sha: str
@@ -80,6 +100,8 @@ def gather(reports: Path, ledger: Path, sha: str, run_id: str) -> Inputs:
         openapi=load_json(reports / "openapi.json"),
         gh_runs=gh_runs if isinstance(gh_runs, list) else [],
         failure_log=load_json(reports / "failure-log.json"),
+        commits=load_json(reports / "commits.json") or {},
+        pulls=load_json(reports / "pulls.json") or {},
         production=load_json(reports / "production.json"),
         open_blockers=(blockers or {}).get("open") if isinstance(blockers, dict) else None,
         sha=sha,
@@ -144,6 +166,8 @@ and what the service actually returned on the run that generated this page.</p>
   </div>
 </div>
 
+{known_defect_note(data)}
+
 <div class="note"><strong>A case that expects a refusal and gets one is a pass.</strong>
 Half of the cases below check that the service says no when it should: a change
 that does not exist, a rule that is not satisfied, a payload that cannot be read,
@@ -152,6 +176,7 @@ a database that is gone. Each row states the check in full, so
 
 <h2>The walkthrough</h2>
 {walkthrough_table(walk)}
+{deferral_line(data)}
 <p class="dim">These {len(walk)} are a selected path through the suite. The full
 {len(cases)} cases are in the repository and every one of them runs on every
 push. The <a href="evidence.html">request and response log</a> has all of them
@@ -169,10 +194,39 @@ just the walkthrough.</p>
 """
 
 
+def known_defect_note(data: Inputs) -> str:
+    """Say that one row is a live bug, and what about it is a decision.
+
+    Two sentences. The reasoning behind the deferral is a conversation the team
+    has, not something the page argues.
+    """
+    open_reports = defects.open_defects()
+    if not open_reports:
+        return ""
+    report = open_reports[0]
+    return f"""<div class="note"><strong>One row below does not pass.</strong>
+{esc(report.key)} is a real defect in this service, found rather than added. The
+decision to leave it open is deliberate, so this page shows a defect being
+carried rather than only defects already closed.</div>"""
+
+
+def deferral_line(data: Inputs) -> str:
+    """One line under the table saying where the open defect stands."""
+    open_reports = defects.open_defects()
+    if not open_reports:
+        return ""
+    report = open_reports[0]
+    version = report.fields.get("Fix version", "")
+    return f"""<p><a class="mono" href="defects.html">{esc(report.key)}</a>
+{esc(report.summary)}. {pill("deferred to " + version, "warn")}</p>"""
+
+
 def walkthrough_table(walk: tuple) -> str:
     """The curated cases, in narrative order, with the assertion spelled out."""
+    tracked = defects.by_failing_test()
     rows = []
     for case in walk:
+        defect = tracked.get(case.node_id)
         subject = case.subject
         call = (
             f"<code>{esc(subject.method)} {esc(short_path(subject.path))}</code>"
@@ -191,7 +245,7 @@ def walkthrough_table(walk: tuple) -> str:
 <td class="k">{esc(case.title)}{body}</td>
 <td>{call}</td>
 <td class="mono">{esc(case.assertion)}</td>
-<td>{outcome_pill(case.outcome)}</td>
+<td>{case_result(case, defect)}</td>
 </tr>"""
         )
     return f"""<table>
@@ -201,12 +255,87 @@ def walkthrough_table(walk: tuple) -> str:
 </table>"""
 
 
+def case_result(case: object, defect: object) -> str:
+    """The result cell, which says known defect rather than fail when it is one.
+
+    A case that fails against a tracked defect is neither a pass nor an
+    unexplained failure. Reporting it as either would be wrong: as a pass it
+    hides a live bug, as a failure it reads as a broken suite.
+    """
+    if getattr(case, "is_known_defect", False) and defect is not None:
+        key = getattr(defect, "key", "")
+        return (
+            f"{pill('known defect', 'warn')}<br>"
+            f"<a class='mono' href='defects.html'>{esc(key)}</a>"
+        )
+    return outcome_pill(getattr(case, "outcome", None))
+
+
 def trimmed_body(body: object, limit: int = 900) -> str:
     """A response body, short enough to read in a table row."""
     text = json.dumps(body, indent=2)
     if len(text) <= limit:
         return text
     return text[:limit] + f"\n... {len(text) - limit} more characters"
+
+
+def seconds_between(earlier: str, later: str) -> str:
+    """How far apart two timestamps are, when both can be read."""
+    first, second = parse_iso(earlier), parse_iso(later)
+    if not first or not second:
+        return ""
+    gap = int((second - first).total_seconds())
+    if gap <= 0:
+        return ""
+    unit = "second" if gap == 1 else "seconds"
+    return f", {gap} {unit} later"
+
+
+def defect_trace_section(data: Inputs) -> str:
+    """Requirement to case to defect, readable from any of the three.
+
+    A matrix that maps requirements to test cases and stops there does not say
+    what the tests missed, or what is known to be broken right now.
+    """
+    reports = defects.load()
+    if not reports:
+        return ""
+
+    cases = {case.node_id: case for case in data.cases}
+    rows = []
+    for report in reports:
+        node_id = report.failing_test or report.fields.get("Regression test", "")
+        case = cases.get(node_id)
+        covers = ", ".join(case.covers) if case and case.covers else "no single requirement"
+        state = pill(report.fields.get("Status", ""), "bad" if report.is_open else "ok")
+        relation = "fails because of it" if report.failing_test else "added after it"
+        rows.append(
+            f"""<tr>
+<td class="k mono"><a href="defects.html">{esc(report.key)}</a></td>
+<td>{state}</td>
+<td class="k">{esc(report.summary)}</td>
+<td class="mono">{esc(case.case_id) if case and case.case_id else "-"}
+{esc(case.name) if case else esc(node_id) or "-"}<br>
+<span class="dim">{esc(relation)}</span></td>
+<td>{esc(covers)}</td>
+<td class="mono">{esc(report.fields.get("Fix version", "-"))}</td>
+</tr>"""
+        )
+
+    return f"""
+<h2>Defects</h2>
+<p>The third leg of the chain, and it reads in both directions. From a
+requirement you can reach the cases that cover it and any defect raised against
+them. From a defect you can reach the case that fails because of it and the
+requirement that case belongs to.</p>
+<table>
+<tr><th>Defect</th><th>Status</th><th>Summary</th><th>Test case</th>
+<th>Requirement</th><th>Fix version</th></tr>
+{"".join(rows)}
+</table>
+<div class="note">A defect traces to the requirement its failing case belongs
+to, and where there is no single one the table says so rather than forcing a
+mapping.</div>"""
 
 
 def failure_section(data: Inputs) -> str:
@@ -226,11 +355,11 @@ def failure_section(data: Inputs) -> str:
         return ""
     return f"""
 <h2>What it looks like when a case fails</h2>
-<div class="note">Every row above passes, and on this run they did. So here is a
-real failure from this repository's history rather than a manufactured one. A
-change was merged carrying a defect, the whole suite still passed, and this is
-the check that caught it. The defect was introduced deliberately to exercise the
-process, and it was reverted immediately afterwards.</div>
+<div class="note">The defect above is one this project chose to carry. This is a
+different kind of failure: one the pipeline refused to let through. A change was
+merged, the whole suite still passed, and this check caught it anyway. That
+defect was introduced deliberately to exercise the process and was reverted
+immediately afterwards.</div>
 <div class="card">
 <pre>{esc(log)}</pre>
 <table>
@@ -246,8 +375,8 @@ promoted and production stayed on the previous version</td></tr>
 <td><a href="{esc(failure.get("url"))}">{esc(failure.get("url"))}</a>,
 {time_tag(failure.get("created_at"))}</td></tr>
 </table>
-<p class="dim">Those lines are the run log, not a transcript of it. See
-<a href="demo.html">when a build fails</a> for the rest of what happened.</p>
+<p class="dim">Those lines are the run log, not a transcript of it.
+<a href="demo.html">When a build fails</a> covers what the pipeline did next.</p>
 </div>
 """
 
@@ -274,6 +403,189 @@ become the same event. The reasoning is recorded in
 <a href="{REPO_URL}/blob/main/docs/decisions/0002-status-codes.md">decision
 0002</a>, and there are {len(grouped[first])} cases on one and
 {len(grouped[second])} on the other.</div>"""
+
+
+MARKDOWN_TABLE_ROW = "|"
+
+
+def markdown_block(text: str) -> str:
+    """Render the prose of a defect section.
+
+    Paragraphs, lists, pipe tables and fenced code. Fenced code matters here
+    because a tester pastes a response into a ticket inside one, and rendering
+    the fence as literal backticks would put the markup on the page.
+    """
+    text, fenced = extract_fences(text)
+    blocks = []
+    for chunk in text.split("\n\n"):
+        if chunk.strip() in fenced:
+            blocks.append(f"<pre>{esc(fenced[chunk.strip()])}</pre>")
+            continue
+        lines = [line.rstrip() for line in chunk.strip().splitlines() if line.strip()]
+        if not lines:
+            continue
+        if all(line.startswith(MARKDOWN_TABLE_ROW) for line in lines):
+            blocks.append(markdown_table(lines))
+        elif all(re.match(r"^(\d+\.|[-*])\s", line) for line in lines):
+            items = "".join(
+                f"<li>{inline_markdown(re.sub(r'^(\d+\.|[-*])\s+', '', line))}</li>"
+                for line in lines
+            )
+            tag = "ol" if re.match(r"^\d+\.", lines[0]) else "ul"
+            blocks.append(f"<{tag}>{items}</{tag}>")
+        else:
+            blocks.append(f"<p>{inline_markdown(' '.join(lines))}</p>")
+    return "".join(blocks)
+
+
+FENCE = "```"
+
+
+def extract_fences(text: str) -> tuple[str, dict[str, str]]:
+    """Replace fenced code with placeholders, and return what they stood for."""
+    fenced: dict[str, str] = {}
+    out: list[str] = []
+    buffer: list[str] = []
+    inside = False
+    for line in text.splitlines():
+        if line.strip().startswith(FENCE):
+            if inside:
+                token = f"FENCE-{len(fenced)}"
+                fenced[token] = "\n".join(buffer)
+                out.append(token)
+                buffer = []
+            inside = not inside
+            continue
+        if inside:
+            buffer.append(line)
+        else:
+            out.append(line)
+    if buffer:
+        token = f"FENCE-{len(fenced)}"
+        fenced[token] = "\n".join(buffer)
+        out.append(token)
+    return "\n".join(out), fenced
+
+
+def markdown_table(lines: list[str]) -> str:
+    """A pipe table from a defect section."""
+    rows = []
+    for index, line in enumerate(lines):
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if all(set(cell) <= {"-", ":"} for cell in cells if cell):
+            continue
+        tag = "th" if index == 0 else "td"
+        rendered = "".join(f"<{tag}>{inline_markdown(cell)}</{tag}>" for cell in cells)
+        rows.append(f"<tr>{rendered}</tr>")
+    return f"<table>{''.join(rows)}</table>"
+
+
+def defect_page(data: Inputs) -> str:
+    """Defect reports, in the shape a tracker would export them."""
+    reports = defects.load()
+    if not reports:
+        return """
+<h1>Defects</h1>
+<p class="lede">No defect reports have been written.</p>"""
+
+    return f"""
+<h1>Defect report</h1>
+<p class="lede">A defect found against this service, written the way a tester
+raises one: enough to reproduce it and decide what to do about it, and nothing
+that belongs in a stand up. It is open, deferred to the next release, and
+carried by a test that fails on every build.</p>
+
+<div class="note"><strong>This is a defect report in Jira export format. It was
+not exported from a Jira instance</strong>, because this project has none. The
+fields and the structure are what would be raised against a real tracker, and
+the attachment is the request and response captured by the suite rather than a
+screenshot pasted in.</div>
+
+<p>The defect is linked to the test case that fails because of it and the
+requirement that case belongs to, on the
+<a href="traceability.html">traceability page</a>.</p>
+
+{"".join(defect_record(report, data) for report in reports)}
+"""
+
+
+def defect_record(report: defects.Defect, data: Inputs) -> str:
+    """One defect, in the eleven field shape a tester can fill in at triage."""
+    fields = "".join(
+        f"<tr><td class='k'>{esc(name)}</td>"
+        f"<td>{inline_markdown(report.fields[name])}</td></tr>"
+        for name in defects.DISPLAY_FIELDS
+        if report.fields.get(name)
+    )
+
+    failing = report.failing_test
+    failing_row = (
+        f"<tr><td class='k'>Failing test</td><td class='mono'>{esc(failing)}</td></tr>"
+        if failing
+        else ""
+    )
+
+    sections = "".join(
+        f"<h3>{esc(title)}</h3>{attachment_block(report, data) if title == 'Attachment' else markdown_block(body)}"
+        for title, body in report.sections.items()
+    )
+
+    status = report.fields.get("Status", "")
+    chip = pill(status, "bad" if report.is_open else "ok")
+
+    return f"""
+<div class="card" style="margin:22px 0">
+<h2>{esc(report.key)}: {esc(report.summary)} {chip}</h2>
+<table>
+{fields}
+<tr><td class="k">Existing case that should have caught it</td>
+<td>{esc(report.fields.get("Existing case that should have caught it", "-"))}</td></tr>
+{failing_row}
+</table>
+{sections}
+</div>"""
+
+
+def attachment_block(report: defects.Defect, data: Inputs) -> str:
+    """The request and response, taken from the run wherever one exists.
+
+    A tester pastes the response into the ticket. This page has the real one,
+    captured by the suite, so it shows that rather than the pasted copy. The
+    pasted copy stays in the file, because the file is the ticket.
+    """
+    captured = next(
+        (case for case in data.captured if case.node_id == report.failing_test),
+        None,
+    )
+    if not captured or not captured.exchanges:
+        return markdown_block(report.sections.get("Attachment", ""))
+
+    subject = captured.exchanges[-1]
+    return f"""<p>Captured from the run that generated this page, not pasted in.</p>
+<pre>{esc(subject.method)} {esc(subject.path)}
+returned {esc(subject.status)}
+
+{esc(trimmed_body(subject.response_body))}</pre>
+<p class="dim">Case <code>{esc(captured.node_id.split("::")[-1])}</code>,
+outcome <code>{esc(captured.outcome)}</code>, captured at commit
+<code>{esc(captured.commit_sha[:7] or "local")}</code>.</p>"""
+
+
+def failure_evidence(data: Inputs) -> str:
+    """The captured failure, as the attachment on the report."""
+    failure = data.failure_log
+    if not failure or not failure.get("lines"):
+        return "<p class='dim'>No captured output for this defect.</p>"
+    parsed = api_cases.parse_smoke_failure(failure["lines"])
+    log = "\n".join(failure["lines"])
+    detail = ""
+    if parsed:
+        detail = f"""<table>
+<tr><td class="k">Check</td><td>{esc(parsed["check"])}</td></tr>
+<tr><td class="k">Expected status</td><td class="mono">{esc(parsed["expected"])}</td></tr>
+<tr><td class="k">Actual status</td><td class="mono">{esc(parsed["actual"])}</td></tr>
+</table>"""
+    return f"<pre>{esc(log)}</pre>{detail}"
 
 
 def dashboard(data: Inputs, decision: readout.Readout) -> str:
@@ -878,6 +1190,8 @@ of case numbers, because a catalogue that nothing enforces drifts from the suite
 within a month. The name in the table is the name in the file, and the build
 fails if a case claims a requirement that does not exist.</p>
 
+{defect_trace_section(data)}
+
 {risk_section(data)}
 
 <h2>Stated gaps</h2>
@@ -1067,6 +1381,7 @@ def build(reports: Path, ledger: Path, out: Path, sha: str, run_id: str) -> list
         claimed_endpoints=traceability.claimed_endpoints(data.cases),
         claimed_requirements=traceability.claimed_requirements(data.cases),
         open_blockers=data.open_blockers,
+        tracked_failures=defects.by_failing_test(),
         commit_sha=sha,
         generated_at=data.generated_at.isoformat(),
         run_id=run_id,
@@ -1083,6 +1398,7 @@ def build(reports: Path, ledger: Path, out: Path, sha: str, run_id: str) -> list
         ),
         "demo.html": ("When a build fails, it does not ship", demo_page(data)),
         "traceability.html": ("Traceability", traceability_page(data)),
+        "defects.html": ("Defect report", defect_page(data)),
         "evidence.html": ("Captured exchanges", evidence_page(data)),
         "api.html": ("API", api_page(data)),
         "team.html": ("How this was built", team_page(data)),
