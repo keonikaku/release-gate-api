@@ -84,6 +84,8 @@ pre{background:var(--bg-soft);border:1px solid var(--line);border-radius:10px;
 .exchange summary{cursor:pointer;padding:12px 16px;background:var(--bg-soft);
   font-size:13.5px;color:var(--txt)}
 .exchange .body{padding:4px 16px 16px}
+.steps-list{margin:0;padding-left:18px}
+.steps-list li{margin:2px 0}
 .bar{height:8px;border-radius:6px;background:var(--line-soft);overflow:hidden}
 .bar span{display:block;height:100%;background:var(--grad)}
 footer{border-top:1px solid var(--line);margin-top:56px;padding-top:20px;
@@ -119,6 +121,7 @@ document.querySelectorAll('time.ts').forEach(function(el){
 # subject of the site, and the order says so.
 NAV = (
     ("index.html", "API tests"),
+    ("cases.html", "Test cases"),
     ("defects.html", "Defect report"),
     ("evidence.html", "Request and response log"),
     ("api.html", "The API"),

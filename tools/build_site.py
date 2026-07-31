@@ -26,6 +26,7 @@ from pathlib import Path
 
 from tools import (
     api_cases,
+    catalog,
     defects,
     evidence,
     readout,
@@ -478,6 +479,108 @@ def markdown_table(lines: list[str]) -> str:
         rendered = "".join(f"<{tag}>{inline_markdown(cell)}</{tag}>" for cell in cells)
         rows.append(f"<tr>{rendered}</tr>")
     return f"<table>{''.join(rows)}</table>"
+
+
+FEATURED_CASE = "API-21"
+
+
+def case_row(case: catalog.CatalogCase) -> str:
+    """One row of the published case table."""
+    steps = "".join(
+        f"<li>{esc(step[step.find('.') + 1 :].strip())}</li>"
+        for step in case.numbered_steps
+    )
+    return f"""<tr>
+<td class="k mono">{esc(case.case_id)}</td>
+<td class="k">{esc(case.title)}</td>
+<td>{esc(case.preconditions)}</td>
+<td><ol class="steps-list">{steps}</ol></td>
+<td>{esc(case.expected_result)}</td>
+<td>{pill(case.priority, "bad" if case.priority == "Critical" else "warn" if case.priority == "High" else "")}</td>
+<td>{pill(case.kind)}</td>
+<td class="mono dim">{esc(case.test_name)}</td>
+</tr>"""
+
+
+def featured_case_block(catalogue: tuple) -> str:
+    """One case shown in full, the way the manual case page shows one."""
+    case = next((c for c in catalogue if c.case_id == FEATURED_CASE), None)
+    if case is None:
+        return ""
+    steps = "".join(
+        f"<li>{esc(step[step.find('.') + 1 :].strip())}</li>"
+        for step in case.numbered_steps
+    )
+    return f"""<div class="card">
+<h3>{esc(case.case_id)}: {esc(case.title)}</h3>
+<table>
+<tr><td class="k">Preconditions</td><td>{esc(case.preconditions)}</td></tr>
+<tr><td class="k">Steps</td><td><ol class="steps-list">{steps}</ol></td></tr>
+<tr><td class="k">Expected result</td><td>{esc(case.expected_result)}</td></tr>
+<tr><td class="k">Priority</td><td>{pill(case.priority, "bad")}</td></tr>
+<tr><td class="k">Type</td><td>{pill(case.kind)}</td></tr>
+<tr><td class="k">Suite</td><td>{esc(case.suite)}</td></tr>
+<tr><td class="k">Automated by</td><td class="mono">{esc(case.test_name)}</td></tr>
+</table>
+</div>"""
+
+
+def cases_page(data: Inputs) -> str:
+    """The full test case catalog, in the shape of the published manual cases."""
+    catalogue = catalog.build(data.cases)
+    totals = catalog.counts(catalogue)
+    grouped = catalog.by_suite(catalogue)
+
+    suites = "".join(
+        f"""<h3>{esc(name)} ({len(members)} cases)</h3>
+<table>
+<tr><th>ID</th><th>Title</th><th>Preconditions</th><th>Steps</th>
+<th>Expected result</th><th>Priority</th><th>Type</th><th>Automated test</th></tr>
+{"".join(case_row(case) for case in members)}
+</table>"""
+        for name, members in grouped.items()
+    )
+
+    return f"""
+<h1>Test cases</h1>
+<p class="lede">All {totals["cases"]} cases for this API, with preconditions,
+steps, expected results and priority. They are written in the tests themselves
+and read out of them to build this page, so a case and the test that runs it
+cannot drift apart.</p>
+
+<div class="grid g3">
+  <div class="card"><div class="label">Cases</div>
+    <div class="kpi">{totals["cases"]}</div>
+    <p class="dim">across {totals["suites"]} suites</p></div>
+  <div class="card"><div class="label">Automated</div>
+    <div class="kpi">{totals["automated"]} of {totals["cases"]}</div>
+    <p class="dim">every case runs on every push</p></div>
+  <div class="card"><div class="label">Priority</div>
+    <div class="kpi">{totals["critical"]} critical</div>
+    <p class="dim">{totals["high"]} high, {totals["medium"]} medium</p></div>
+</div>
+
+<div class="note">The <a href="index.html">results page</a> walks
+{len(api_cases.WALKTHROUGH)} of these cases in the order a reader would meet
+them, and shows what the service returned for each. This page is the full set.
+The two numbers are the same catalog seen twice, not two different suites.</div>
+
+<h2>A case in full</h2>
+{featured_case_block(catalogue)}
+
+<h2>Every case</h2>
+{suites}
+
+<h2>Download</h2>
+<p>The same cases as CSV, with the derived <code>Suite</code>, <code>ID</code>,
+<code>Automated</code> and <code>Automated Test</code> columns added to the six
+that are written by hand.</p>
+<p><a href="test-cases.csv" download><code>test-cases.csv</code></a>, all
+{totals["cases"]} cases.</p>
+<p class="dim">Priority and Type are assigned by the test author. Everything
+else in a row is read out of the test that runs it, and the build fails if a
+case has no preconditions, no numbered steps or no expected result.</p>
+"""
 
 
 def defect_page(data: Inputs) -> str:
@@ -1398,6 +1501,7 @@ def build(reports: Path, ledger: Path, out: Path, sha: str, run_id: str) -> list
         ),
         "demo.html": ("When a build fails, it does not ship", demo_page(data)),
         "traceability.html": ("Traceability", traceability_page(data)),
+        "cases.html": ("Test cases", cases_page(data)),
         "defects.html": ("Defect report", defect_page(data)),
         "evidence.html": ("Captured exchanges", evidence_page(data)),
         "api.html": ("API", api_page(data)),
@@ -1415,6 +1519,11 @@ def build(reports: Path, ledger: Path, out: Path, sha: str, run_id: str) -> list
         spec = out / "openapi.json"
         spec.write_text(json.dumps(data.openapi, indent=2) + "\n", encoding="utf-8")
         written.append(spec)
+
+    (out / "test-cases.csv").write_text(
+        catalog.to_csv(catalog.build(data.cases)), encoding="utf-8"
+    )
+    written.append(out / "test-cases.csv")
 
     readout_json = out / "readout.json"
     readout_json.write_text(

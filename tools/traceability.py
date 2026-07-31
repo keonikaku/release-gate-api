@@ -48,6 +48,11 @@ class TestCase:
     reason: str = ""
     case_id: str = ""
     expects: int | None = None
+    priority: str = ""
+    kind: str = ""
+    preconditions: str = ""
+    steps: str = ""
+    expected_result: str = ""
 
 
 @dataclass(frozen=True)
@@ -200,7 +205,18 @@ def _endpoint_of(node: ast.FunctionDef, constants: dict[str, str]) -> str | None
 def test_cases(tests_root: Path | None = None) -> tuple[TestCase, ...]:
     """Every test function in the suite, with what it says about itself."""
     root = TESTS_ROOT if tests_root is None else tests_root
-    labels = ("Case", "Expects", "Layer", "Covers", "Why this layer")
+    labels = (
+        "Case",
+        "Expects",
+        "Priority",
+        "Type",
+        "Preconditions",
+        "Steps",
+        "Expected result",
+        "Layer",
+        "Covers",
+        "Why this layer",
+    )
     cases: list[TestCase] = []
 
     for path in sorted(root.rglob("test_*.py")):
@@ -228,6 +244,11 @@ def test_cases(tests_root: Path | None = None) -> tuple[TestCase, ...]:
                     reason=_docstring_field(doc, "Why this layer", labels),
                     case_id=_docstring_field(doc, "Case", labels),
                     expects=_as_status(_docstring_field(doc, "Expects", labels)),
+                    priority=_docstring_field(doc, "Priority", labels),
+                    kind=_docstring_field(doc, "Type", labels),
+                    preconditions=_docstring_field(doc, "Preconditions", labels),
+                    steps=_docstring_field(doc, "Steps", labels),
+                    expected_result=_docstring_field(doc, "Expected result", labels),
                 )
             )
     return tuple(cases)
