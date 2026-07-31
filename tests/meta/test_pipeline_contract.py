@@ -276,3 +276,24 @@ def test_the_defect_page_says_it_is_a_format_not_an_export():
         build_site.gather(REPO_ROOT / "no-reports", REPO_ROOT / "no-ledger.csv", "", "")
     )
     assert "not exported from a Jira instance" in page
+
+
+def test_every_required_defect_field_reaches_the_page():
+    """A field the report requires is a field the reader sees.
+
+    Layer: meta
+    Covers: none
+    Why this layer: the parser and the renderer keep separate lists of fields,
+    and the first version of this page parsed Accounts impacted correctly and
+    then never printed it. A required field that renders nowhere is worse than
+    a missing one, because the document looks complete.
+    """
+    from tools import defects  # noqa: PLC0415 - only needed by this case
+
+    rendered = (
+        set(defects.DISPLAY_FIELDS)
+        | set(defects.LINKED_FIELDS)
+        | set(defects.HEADING_FIELDS)
+    )
+    missing = sorted(set(defects.REQUIRED_FIELDS) - rendered)
+    assert missing == [], f"required fields that no page renders: {missing}"

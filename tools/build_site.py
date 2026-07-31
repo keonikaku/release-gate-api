@@ -471,17 +471,7 @@ green rather than a single commit claiming both.</td></tr>"""
 
     fields = "".join(
         f"<tr><td class='k'>{esc(name)}</td><td>{inline_markdown(report.fields[name])}</td></tr>"
-        for name in (
-            "Issue type",
-            "Status",
-            "Resolution",
-            "Priority",
-            "Severity",
-            "Reproducibility",
-            "Components",
-            "Labels",
-            "Environment tested",
-        )
+        for name in defects.DISPLAY_FIELDS
         if report.fields.get(name)
     )
 

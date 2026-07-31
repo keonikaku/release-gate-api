@@ -64,6 +64,36 @@ MAY_BE_NOT_APPLICABLE = (
     "Existing case that should have caught it",
 )
 
+#: The fields the page prints as a block, in the order a tracker shows them.
+#: Every required field appears here or is rendered in its own row with a link,
+#: and a meta test fails the build if one is parsed but never shown.
+DISPLAY_FIELDS = (
+    "Issue type",
+    "Status",
+    "Resolution",
+    "Priority",
+    "Severity",
+    "Reproducibility",
+    "Components",
+    "Labels",
+    "Accounts impacted",
+    "Environment tested",
+)
+
+#: Required fields the renderer shows as the heading of the record rather than
+#: as a row.
+HEADING_FIELDS = ("Summary",)
+
+#: Required fields that the renderer handles individually rather than in the
+#: block above, because each one resolves to a link.
+LINKED_FIELDS = (
+    "Affects commit",
+    "Found on run",
+    "Regression test",
+    "Existing case that should have caught it",
+)
+
+
 #: Fields whose value is a commit SHA, resolved against GitHub at build time.
 COMMIT_FIELDS = ("Affects commit", "Fix commit", "Regression commit")
 
