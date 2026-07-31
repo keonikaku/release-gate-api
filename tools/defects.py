@@ -33,7 +33,6 @@ REQUIRED_FIELDS = (
     "Summary",
     "Status",
     "Priority",
-    "Severity",
     "Reproducibility",
     "Environment",
     "Components",
@@ -69,7 +68,6 @@ DISPLAY_FIELDS = (
     "Status",
     "Resolution",
     "Priority",
-    "Severity",
     "Reproducibility",
     "Environment",
     "Components",
@@ -95,6 +93,11 @@ LINKED_FIELDS = (
 #: conversation the team has, not fields. A field that explains why rather than
 #: what does not belong here, which is why root cause, coverage analysis,
 #: detection, resolution and the deferral rationale are all absent.
+#:
+#: Neither does a field the team does not use, however standard it is
+#: elsewhere. Severity was here and came out for that reason: it is in every
+#: guide and it was in nobody's workflow, and a field its owner would have to
+#: hedge about is worth less than one they can walk a reader through cold.
 #:
 #: Statuses that mean the defect is still live. A deferred defect is open: the
 #: status and the fix version record the decision, which is how a tracker

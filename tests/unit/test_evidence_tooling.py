@@ -1293,7 +1293,7 @@ def test_a_report_missing_a_required_field_is_reported(tmp_path):
     """
     report = defects.parse(write_defect(tmp_path, "# DEF-001\n\n**Issue type:** Bug\n"))
     problems = report.problems
-    assert any("Severity" in problem for problem in problems)
+    assert any("Priority" in problem for problem in problems)
     assert any("Steps to reproduce" in problem for problem in problems)
 
 
