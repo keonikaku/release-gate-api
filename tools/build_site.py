@@ -338,7 +338,6 @@ to, and where there is no single one the table says so rather than forcing a
 mapping.</div>"""
 
 
-
 def failure_section(data: Inputs) -> str:
     """The one real failure, taken out of GitHub's log for that run.
 
