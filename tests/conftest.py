@@ -57,7 +57,12 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo):
     outcome rather than assuming the test passed."""
     report = yield
     if report.when == "call":
-        item.stash[OUTCOME_KEY] = report.outcome
+        # pytest reports an expected failure as a skip. The two mean opposite
+        # things and the evidence has to tell them apart: a skip did not run, an
+        # expected failure ran and failed against a tracked defect.
+        item.stash[OUTCOME_KEY] = (
+            "xfailed" if hasattr(report, "wasxfail") else report.outcome
+        )
     return report
 
 

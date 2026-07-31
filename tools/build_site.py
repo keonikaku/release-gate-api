@@ -166,6 +166,8 @@ and what the service actually returned on the run that generated this page.</p>
   </div>
 </div>
 
+{known_defect_note(data)}
+
 <div class="note"><strong>A case that expects a refusal and gets one is a pass.</strong>
 Half of the cases below check that the service says no when it should: a change
 that does not exist, a rule that is not satisfied, a payload that cannot be read,
@@ -191,10 +193,34 @@ just the walkthrough.</p>
 """
 
 
+def known_defect_note(data: Inputs) -> str:
+    """Say that one row is a live bug, and say what about it is a decision."""
+    open_reports = defects.open_defects()
+    if not open_reports:
+        return ""
+    report = open_reports[0]
+    fix_version = report.fields.get("Fix version", "")
+    return f"""<div class="note"><strong>One case below does not pass, and that is
+the point of it.</strong> {esc(report.key)} is a real defect in this service: the
+gate accepts a change whose implementation window ends before it starts. The case
+that catches it runs on every build, fails on every build, and is marked as an
+expected failure against the defect, so it reports the bug without blocking the
+release. Fixing the bug without closing the report also fails the build, which is
+what stops an expected failure becoming a test nobody looks at again.
+
+<br><br>The bug is real and was found in this service rather than added to it.
+<strong>What is deliberate is the decision to leave it open</strong> and defer the
+fix to {esc(fix_version)}, so that this page shows a defect being reported and
+carried rather than only defects already closed. That deferral is recorded on the
+<a href="defects.html">report</a> with who accepted it and why.</div>"""
+
+
 def walkthrough_table(walk: tuple) -> str:
     """The curated cases, in narrative order, with the assertion spelled out."""
+    tracked = defects.by_failing_test()
     rows = []
     for case in walk:
+        defect = tracked.get(case.node_id)
         subject = case.subject
         call = (
             f"<code>{esc(subject.method)} {esc(short_path(subject.path))}</code>"
@@ -213,7 +239,7 @@ def walkthrough_table(walk: tuple) -> str:
 <td class="k">{esc(case.title)}{body}</td>
 <td>{call}</td>
 <td class="mono">{esc(case.assertion)}</td>
-<td>{outcome_pill(case.outcome)}</td>
+<td>{case_result(case, defect)}</td>
 </tr>"""
         )
     return f"""<table>
@@ -221,6 +247,22 @@ def walkthrough_table(walk: tuple) -> str:
 <th>Result</th></tr>
 {"".join(rows)}
 </table>"""
+
+
+def case_result(case: object, defect: object) -> str:
+    """The result cell, which says known defect rather than fail when it is one.
+
+    A case that fails against a tracked defect is neither a pass nor an
+    unexplained failure. Reporting it as either would be wrong: as a pass it
+    hides a live bug, as a failure it reads as a broken suite.
+    """
+    if getattr(case, "is_known_defect", False) and defect is not None:
+        key = getattr(defect, "key", "")
+        return (
+            f"{pill('known defect', 'warn')}<br>"
+            f"<a class='mono' href='defects.html'>{esc(key)}</a>"
+        )
+    return outcome_pill(getattr(case, "outcome", None))
 
 
 def trimmed_body(body: object, limit: int = 900) -> str:
@@ -244,11 +286,10 @@ def seconds_between(earlier: str, later: str) -> str:
 
 
 def defect_trace_section(data: Inputs) -> str:
-    """Defect to test case to requirement, which is the chain that matters.
+    """Requirement to case to defect, readable from any of the three.
 
-    A traceability matrix that stops at requirement and test case is half a
-    matrix. The third column is what the defects found, and whether anything
-    now covers them.
+    A matrix that maps requirements to test cases and stops there does not say
+    what the tests missed, or what is known to be broken right now.
     """
     reports = defects.load()
     if not reports:
@@ -257,34 +298,40 @@ def defect_trace_section(data: Inputs) -> str:
     cases = {case.node_id: case for case in data.cases}
     rows = []
     for report in reports:
-        node_id = report.fields.get("Regression test", "")
+        node_id = report.failing_test or report.fields.get("Regression test", "")
         case = cases.get(node_id)
         covers = ", ".join(case.covers) if case and case.covers else "no single requirement"
+        state = pill(report.fields.get("Status", ""), "bad" if report.is_open else "ok")
+        relation = "fails because of it" if report.failing_test else "added after it"
         rows.append(
             f"""<tr>
 <td class="k mono"><a href="defects.html">{esc(report.key)}</a></td>
+<td>{state}</td>
 <td class="k">{esc(report.summary)}</td>
-<td>{esc(report.fields.get("Existing case that should have caught it", "-"))}</td>
-<td class="mono">{esc(case.name) if case else esc(node_id) or "-"}</td>
+<td class="mono">{esc(case.case_id) if case and case.case_id else "-"}
+{esc(case.name) if case else esc(node_id) or "-"}<br>
+<span class="dim">{esc(relation)}</span></td>
 <td>{esc(covers)}</td>
+<td class="mono">{esc(report.fields.get("Fix version", "-"))}</td>
 </tr>"""
         )
 
     return f"""
 <h2>Defects</h2>
-<p>The third leg of the chain. A matrix that maps requirements to test cases and
-stops there does not say what the tests missed, and what was added because of it.</p>
+<p>The third leg of the chain, and it reads in both directions. From a
+requirement you can reach the cases that cover it and any defect raised against
+them. From a defect you can reach the case that fails because of it and the
+requirement that case belongs to.</p>
 <table>
-<tr><th>Defect</th><th>Summary</th><th>Case that should have caught it</th>
-<th>Regression case added</th><th>Requirement</th></tr>
+<tr><th>Defect</th><th>Status</th><th>Summary</th><th>Test case</th>
+<th>Requirement</th><th>Fix version</th></tr>
 {"".join(rows)}
 </table>
 <div class="note">DEF-001 traces to no single requirement, and saying so is more
-useful than forcing a mapping. The defect made every endpoint that touches stored
-state return 500, so every requirement the service enforces was unreachable while
-it was live. What it traces to precisely is the regression case in the fourth
-column, which is the only case in the suite that exercises the wiring the defect
-was in.</div>"""
+useful than forcing a mapping. It made every endpoint that touches stored state
+return 500, so every requirement was unreachable while it was live. DEF-002 sits
+under REQ-1, the submission rules, because the field it fails to validate is part
+of a submission.</div>"""
 
 
 def defect_key(data: Inputs) -> str:
@@ -366,9 +413,18 @@ MARKDOWN_TABLE_ROW = "|"
 
 
 def markdown_block(text: str) -> str:
-    """Render the prose of a defect section: paragraphs, lists and one table."""
+    """Render the prose of a defect section.
+
+    Paragraphs, lists, pipe tables and fenced code. Fenced code matters here
+    because a tester pastes a response into a ticket inside one, and rendering
+    the fence as literal backticks would put the markup on the page.
+    """
+    text, fenced = extract_fences(text)
     blocks = []
     for chunk in text.split("\n\n"):
+        if chunk.strip() in fenced:
+            blocks.append(f"<pre>{esc(fenced[chunk.strip()])}</pre>")
+            continue
         lines = [line.rstrip() for line in chunk.strip().splitlines() if line.strip()]
         if not lines:
             continue
@@ -384,6 +440,35 @@ def markdown_block(text: str) -> str:
         else:
             blocks.append(f"<p>{inline_markdown(' '.join(lines))}</p>")
     return "".join(blocks)
+
+
+FENCE = "```"
+
+
+def extract_fences(text: str) -> tuple[str, dict[str, str]]:
+    """Replace fenced code with placeholders, and return what they stood for."""
+    fenced: dict[str, str] = {}
+    out: list[str] = []
+    buffer: list[str] = []
+    inside = False
+    for line in text.splitlines():
+        if line.strip().startswith(FENCE):
+            if inside:
+                token = f"FENCE-{len(fenced)}"
+                fenced[token] = "\n".join(buffer)
+                out.append(token)
+                buffer = []
+            inside = not inside
+            continue
+        if inside:
+            buffer.append(line)
+        else:
+            out.append(line)
+    if buffer:
+        token = f"FENCE-{len(fenced)}"
+        fenced[token] = "\n".join(buffer)
+        out.append(token)
+    return "\n".join(out), fenced
 
 
 def markdown_table(lines: list[str]) -> str:
@@ -424,89 +509,65 @@ real record on GitHub.</div>
 
 
 def defect_record(report: defects.Defect, data: Inputs) -> str:
-    """One defect, as a tracker would show it."""
-    commits = data.commits
-    pulls = data.pulls
-
-    def commit_cell(field_name: str) -> str:
-        sha = report.fields.get(field_name, "")
-        found = commits.get(sha)
-        if not found:
-            return f"<span class='mono'>{esc(sha) or '-'}</span>"
-        return (
-            f"<a class='mono' href='{esc(found['url'])}'>{esc(found['short_sha'])}</a> "
-            f"{esc(found['message'])}"
-        )
-
-    def pull_cell(field_name: str) -> str:
-        number = report.fields.get(field_name, "")
-        found = pulls.get(number)
-        if not found:
-            return f"<span class='mono'>{esc(number) or '-'}</span>"
-        return (
-            f"<a href='{esc(found['url'])}'>#{esc(found['number'])}</a> "
-            f"{esc(found['title'])}"
-        )
-
-    run_id = report.fields.get("Found on run", "")
-    run_link = (
-        f"<a href='{REPO_URL}/actions/runs/{esc(run_id)}'>run {esc(run_id)}</a>"
-        if run_id
-        else "-"
-    )
-
-    order = defects.ordering(commits, report)
-    ordering_row = ""
-    if order:
-        regression_at, fix_at = order
-        regression_first = regression_at < fix_at
-        gap = seconds_between(regression_at, fix_at)
-        ordering_row = f"""<tr>
-<td class="k">Regression written before the fix</td>
-<td>{pill("yes" if regression_first else "no", "ok" if regression_first else "bad")}
-regression committed {time_tag(regression_at, seconds=True)}, fix committed
-{time_tag(fix_at, seconds=True)}{gap}. Both timestamps come from GitHub rather
-than from this report, and that ordering is why the run history shows red before
-green rather than a single commit claiming both.</td></tr>"""
-
+    """One defect, in the eleven field shape a tester can fill in at triage."""
     fields = "".join(
-        f"<tr><td class='k'>{esc(name)}</td><td>{inline_markdown(report.fields[name])}</td></tr>"
+        f"<tr><td class='k'>{esc(name)}</td>"
+        f"<td>{inline_markdown(report.fields[name])}</td></tr>"
         for name in defects.DISPLAY_FIELDS
         if report.fields.get(name)
     )
 
+    failing = report.failing_test
+    failing_row = (
+        f"<tr><td class='k'>Failing test</td><td class='mono'>{esc(failing)}</td></tr>"
+        if failing
+        else ""
+    )
+
     sections = "".join(
-        f"<h3>{esc(title)}</h3>{markdown_block(body)}"
+        f"<h3>{esc(title)}</h3>{attachment_block(report, data) if title == 'Attachment' else markdown_block(body)}"
         for title, body in report.sections.items()
     )
 
-    evidence_block = failure_evidence(data)
+    status = report.fields.get("Status", "")
+    chip = pill(status, "bad" if report.is_open else "ok")
 
     return f"""
 <div class="card" style="margin:22px 0">
-<h2>{esc(report.key)}: {esc(report.summary)}</h2>
+<h2>{esc(report.key)}: {esc(report.summary)} {chip}</h2>
 <table>
 {fields}
-<tr><td class="k">Affects commit</td><td>{commit_cell("Affects commit")}</td></tr>
-<tr><td class="k">Found on</td><td>{run_link}</td></tr>
-<tr><td class="k">Fix commit</td><td>{commit_cell("Fix commit")}</td></tr>
-<tr><td class="k">Regression commit</td><td>{commit_cell("Regression commit")}</td></tr>
-{ordering_row}
-<tr><td class="k">Linked issues</td><td>{pull_cell("Introduced by pull request")}<br>
-{pull_cell("Fix pull request")}</td></tr>
-<tr><td class="k">Regression test</td>
-<td class="mono">{esc(report.fields.get("Regression test", "-"))}</td></tr>
 <tr><td class="k">Existing case that should have caught it</td>
 <td>{esc(report.fields.get("Existing case that should have caught it", "-"))}</td></tr>
+{failing_row}
 </table>
-
-<h3>Attachment: the request and the response</h3>
-<p>This API has no screen to photograph. The equivalent evidence is the exchange
-itself, captured by the pipeline at the moment of failure.</p>
-{evidence_block}
-
 {sections}
 </div>"""
+
+
+def attachment_block(report: defects.Defect, data: Inputs) -> str:
+    """The request and response, taken from the run wherever one exists.
+
+    A tester pastes the response into the ticket. This page has the real one,
+    captured by the suite, so it shows that rather than the pasted copy. The
+    pasted copy stays in the file, because the file is the ticket.
+    """
+    captured = next(
+        (case for case in data.captured if case.node_id == report.failing_test),
+        None,
+    )
+    if not captured or not captured.exchanges:
+        return markdown_block(report.sections.get("Attachment", ""))
+
+    subject = captured.exchanges[-1]
+    return f"""<p>Captured from the run that generated this page, not pasted in.</p>
+<pre>{esc(subject.method)} {esc(subject.path)}
+returned {esc(subject.status)}
+
+{esc(trimmed_body(subject.response_body))}</pre>
+<p class="dim">Case <code>{esc(captured.node_id.split("::")[-1])}</code>,
+outcome <code>{esc(captured.outcome)}</code>, captured at commit
+<code>{esc(captured.commit_sha[:7] or "local")}</code>.</p>"""
 
 
 def failure_evidence(data: Inputs) -> str:
@@ -1319,6 +1380,7 @@ def build(reports: Path, ledger: Path, out: Path, sha: str, run_id: str) -> list
         claimed_endpoints=traceability.claimed_endpoints(data.cases),
         claimed_requirements=traceability.claimed_requirements(data.cases),
         open_blockers=data.open_blockers,
+        tracked_failures=defects.by_failing_test(),
         commit_sha=sha,
         generated_at=data.generated_at.isoformat(),
         run_id=run_id,

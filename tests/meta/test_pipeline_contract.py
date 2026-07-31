@@ -229,6 +229,53 @@ def test_every_defect_report_carries_the_required_fields():
     assert problems == [], "\n".join(problems)
 
 
+def test_every_open_defect_names_a_failing_test_that_exists():
+    """An open defect points at the case that currently fails because of it.
+
+    Layer: meta
+    Covers: none
+    Why this layer: that link is what makes the defect live rather than a note.
+    It is also what the pipeline reads to decide whether an expected failure is
+    tracked, so a stale node ID would turn a tracked failure into an untracked
+    one silently.
+    """
+    from tools import defects, traceability  # noqa: PLC0415 - only needed here
+
+    known = {case.node_id for case in traceability.test_cases()}
+    for defect in defects.open_defects():
+        assert defect.failing_test, f"{defect.key} is open and names no failing test"
+        assert defect.failing_test in known, (
+            f"{defect.key} names a test that does not exist: {defect.failing_test}"
+        )
+
+
+def test_every_expected_failure_is_tracked_by_an_open_defect():
+    """No test is marked as an expected failure without a defect behind it.
+
+    Layer: meta
+    Covers: none
+    Why this layer: an xfail with no defect is a test nobody will look at
+    again. This reads the markers in the source and the reports on disk, and
+    neither is visible from a run.
+    """
+    import re as regex  # noqa: PLC0415 - only needed by this case
+
+    from tools import defects  # noqa: PLC0415 - only needed by this case
+
+    tracked = defects.by_failing_test()
+    marked = []
+    for path in (REPO_ROOT / "tests").rglob("test_*.py"):
+        text = path.read_text(encoding="utf-8")
+        for match in regex.finditer(r"@pytest\.mark\.xfail", text):
+            following = text[match.start() : match.start() + 900]
+            name = regex.search(r"def (test_\w+)", following)
+            if name:
+                marked.append(f"{path.relative_to(REPO_ROOT)}::{name.group(1)}")
+
+    untracked = sorted(set(marked) - set(tracked))
+    assert untracked == [], f"expected failures with no open defect: {untracked}"
+
+
 def test_every_defect_names_a_regression_test_that_exists():
     """The case a defect says now covers it is a real case.
 
@@ -243,23 +290,6 @@ def test_every_defect_names_a_regression_test_that_exists():
     known = {case.node_id for case in traceability.test_cases()}
     missing = [node_id for node_id in defects.referenced_tests() if node_id not in known]
     assert missing == [], f"defect reports name tests that do not exist: {missing}"
-
-
-def test_every_defect_names_commits_that_look_like_commits():
-    """Commit and pull request references are identifiers, not prose.
-
-    Layer: meta
-    Covers: none
-    Why this layer: the page resolves these against GitHub at build time, so a
-    value that is not an identifier silently renders as bare text with no link.
-    """
-    from tools import defects  # noqa: PLC0415 - only needed by this case
-
-    for report in defects.load():
-        assert report.commits(), f"{report.key} names no commits"
-        assert report.fields.get("Found on run", "").isdigit(), (
-            f"{report.key} has no run id"
-        )
 
 
 def test_the_defect_page_says_it_is_a_format_not_an_export():

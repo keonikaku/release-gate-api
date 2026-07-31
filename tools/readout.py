@@ -211,6 +211,61 @@ def blocker_criterion(open_blockers: int | None) -> Criterion:
     )
 
 
+def known_defect_criterion(
+    results: RunResults | None,
+    tracked: dict[str, object],
+) -> Criterion:
+    """C6. Every expected failure names an open defect that exists.
+
+    An expected failure is a test that runs, fails, and does not stop the
+    build. That is a reasonable thing to have and a dangerous thing to leave
+    unwatched: it is one decorator away from being a test nobody looks at
+    again. This criterion is what keeps it a decision. Every one has to point
+    at a defect report that is still open, and the strict marker means fixing
+    the defect without closing the report fails the build from the other side.
+    """
+    if results is None:
+        return Criterion(
+            id="C6",
+            statement="Every expected failure is tracked by an open defect.",
+            met=None,
+            detail="No JUnit report was produced by this run.",
+        )
+
+    expected = results.expected_failures
+    if not expected:
+        return Criterion(
+            id="C6",
+            statement="Every expected failure is tracked by an open defect.",
+            met=True,
+            detail="No expected failures in this run.",
+        )
+
+    untracked = [case.base_node_id for case in expected if case.base_node_id not in tracked]
+    if untracked:
+        return Criterion(
+            id="C6",
+            statement="Every expected failure is tracked by an open defect.",
+            met=False,
+            detail=f"not tracked by any open defect: {', '.join(sorted(untracked))}",
+        )
+    named = ", ".join(
+        sorted(str(getattr(tracked[case.base_node_id], "key", "")) for case in expected)
+    )
+    return f_criterion(len(expected), named)
+
+
+def f_criterion(count: int, named: str) -> Criterion:
+    """C6 met, with the defects it is tracking named."""
+    word = "failure" if count == 1 else "failures"
+    return Criterion(
+        id="C6",
+        statement="Every expected failure is tracked by an open defect.",
+        met=True,
+        detail=f"{count} expected {word}, tracked by {named}.",
+    )
+
+
 def compute(
     results: RunResults | None,
     rows: tuple[traceability.RequirementRow, ...],
@@ -218,6 +273,7 @@ def compute(
     claimed_endpoints: dict[str, list[str]],
     claimed_requirements: tuple[str, ...],
     open_blockers: int | None,
+    tracked_failures: dict[str, object],
     commit_sha: str,
     generated_at: str,
     run_id: str,
@@ -230,6 +286,7 @@ def compute(
             traceability_criterion(rows, claimed_requirements),
             endpoint_criterion(documented_endpoints, claimed_endpoints),
             blocker_criterion(open_blockers),
+            known_defect_criterion(results, tracked_failures),
         ),
         commit_sha=commit_sha,
         generated_at=generated_at,

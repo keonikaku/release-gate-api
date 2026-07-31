@@ -256,6 +256,7 @@ def test_all_five_criteria_met_gives_a_go():
         claimed_endpoints={"GET /healthz": ["tests/integration/test_api.py::test_x"]},
         claimed_requirements=(),
         open_blockers=0,
+        tracked_failures={},
         commit_sha="abc1234",
         generated_at=datetime.now(UTC).isoformat(),
         run_id="1",
@@ -279,6 +280,7 @@ def test_an_empty_run_is_not_a_go():
         claimed_endpoints={"GET /healthz": ["x"]},
         claimed_requirements=(),
         open_blockers=0,
+        tracked_failures={},
         commit_sha="abc1234",
         generated_at=datetime.now(UTC).isoformat(),
         run_id="1",
@@ -567,12 +569,13 @@ def test_the_readout_json_names_every_criterion(tmp_path):
         claimed_endpoints={},
         claimed_requirements=(),
         open_blockers=None,
+        tracked_failures={},
         commit_sha="abc",
         generated_at="2026-07-30T00:00:00+00:00",
         run_id="1",
     )
     payload = json.loads(json.dumps({"criteria": [c.id for c in decision.criteria]}))
-    assert payload["criteria"] == ["C1", "C2", "C3", "C4", "C5"]
+    assert payload["criteria"] == ["C1", "C2", "C3", "C4", "C5", "C6"]
     assert decision.decision == readout.NO_GO
 
 
@@ -1294,48 +1297,6 @@ def test_a_report_missing_a_required_field_is_reported(tmp_path):
     assert any("Steps to reproduce" in problem for problem in problems)
 
 
-def test_commit_and_pull_references_are_identifiers(tmp_path):
-    """Only values that look like a SHA or a number are resolved.
-
-    Layer: unit
-    Covers: none
-    Why this layer: a prose value would render as unlinked text, which reads as
-    a reference to something the reader cannot open.
-    """
-    report = defects.parse(
-        write_defect(
-            tmp_path,
-            "# DEF-001\n\n**Affects commit:** 383565e\n**Fix commit:** not yet\n"
-            "**Fix pull request:** 5\n**Introduced by pull request:** unknown\n",
-        )
-    )
-    assert report.commits() == {"Affects commit": "383565e"}
-    assert report.pulls() == {"Fix pull request": 5}
-
-
-def test_the_ordering_pair_comes_from_the_commits(tmp_path):
-    """Red before green is shown as two timestamps, not asserted in prose.
-
-    Layer: unit
-    Covers: none
-    Why this layer: the claim is the strongest one the defect page makes, and
-    it is only worth anything if the two values behind it are visible.
-    """
-    report = defects.parse(
-        write_defect(
-            tmp_path,
-            "# DEF-001\n\n**Regression commit:** 5f05880\n**Fix commit:** 2e3dce5\n",
-        )
-    )
-    commits = {
-        "5f05880": {"authored_at": "2026-07-30T02:19:21Z"},
-        "2e3dce5": {"authored_at": "2026-07-30T02:19:50Z"},
-    }
-    regression_at, fix_at = defects.ordering(commits, report)
-    assert regression_at < fix_at
-    assert defects.ordering({}, report) is None
-
-
 def test_the_gap_between_two_commits_is_derived():
     """The page states how far apart the two commits were.
 
@@ -1347,3 +1308,71 @@ def test_the_gap_between_two_commits_is_derived():
     gap = build_site.seconds_between("2026-07-30T02:19:21Z", "2026-07-30T02:19:50Z")
     assert "29 seconds later" in gap
     assert build_site.seconds_between("2026-07-30T02:19:50Z", "2026-07-30T02:19:21Z") == ""
+
+
+def test_an_expected_failure_is_not_counted_as_a_skip(tmp_path):
+    """A tracked failure ran and failed. A skip did not run at all.
+
+    Layer: unit
+    Covers: none
+    Why this layer: pytest records both as a skip in the report, and the
+    readout has a criterion that fails on skips. Collapsing them would either
+    let a skip hide behind a defect ID or make a tracked defect fail the build.
+    """
+    path = tmp_path / "junit.xml"
+    path.write_text(
+        '<testsuites><testsuite name="pytest" tests="2" time="1">'
+        '<testcase classname="tests.integration.test_api" name="test_known" time="0.1">'
+        '<skipped type="pytest.xfail" message="DEF-002"/></testcase>'
+        '<testcase classname="tests.integration.test_api" name="test_skipped" time="0.1">'
+        '<skipped type="pytest.skip" message="no server"/></testcase>'
+        "</testsuite></testsuites>",
+        encoding="utf-8",
+    )
+    parsed = results.parse_junit(path)
+    assert parsed.skipped == 1
+    assert len(parsed.expected_failures) == 1
+    assert parsed.expected_failures[0].function == "test_known"
+
+
+def test_an_untracked_expected_failure_blocks_the_go():
+    """An xfail with no open defect behind it is not acceptable.
+
+    Layer: unit
+    Covers: none
+    Why this layer: this is the guard that keeps an expected failure a decision
+    rather than a way to silence a test.
+    """
+    failing = results.RunResults(
+        cases=(
+            results.CaseResult(
+                node_id="tests/integration/test_api.py::test_known",
+                function="test_known",
+                outcome=results.XFAILED,
+                duration=0.1,
+            ),
+        ),
+        duration=0.1,
+    )
+    untracked = readout.known_defect_criterion(failing, {})
+    assert untracked.met is False
+    assert "not tracked" in untracked.detail
+
+    tracked = readout.known_defect_criterion(
+        failing, {"tests/integration/test_api.py::test_known": object()}
+    )
+    assert tracked.met is True
+
+
+def test_a_run_with_no_expected_failures_meets_the_criterion():
+    """The criterion is not a requirement to have one.
+
+    Layer: unit
+    Covers: none
+    Why this layer: a suite with nothing deferred should pass it, and the
+    wording of the detail line is what a reader sees on the dashboard.
+    """
+    clean = results.RunResults(cases=(), duration=0.0)
+    criterion = readout.known_defect_criterion(clean, {})
+    assert criterion.met is True
+    assert "No expected failures" in criterion.detail

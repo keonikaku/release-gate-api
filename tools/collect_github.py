@@ -20,8 +20,6 @@ import re
 import subprocess
 from pathlib import Path
 
-from tools import defects
-
 WORKFLOW = "post-merge.yml"
 RUN_FIELDS = "databaseId,conclusion,status,headBranch,headSha,createdAt,url,displayTitle"
 
@@ -135,47 +133,6 @@ def collect_failure_log(out: Path, runs_data: list[dict]) -> None:
     print(f"kept {len(lines)} lines of smoke output from run {blocked['databaseId']}")
 
 
-def collect_commits(out: Path, shas: list[str]) -> None:
-    """Details of named commits, so the defect report does not restate them.
-
-    The report names the commits by SHA, because a SHA is a fact anyone can
-    check. Everything else about them (the message, who authored it, when) is
-    read from GitHub here rather than typed into the report, where it could
-    drift from the commit it describes.
-    """
-    found = {}
-    for sha in shas:
-        raw = gh("api", f"repos/{{owner}}/{{repo}}/commits/{sha}")
-        if raw is None:
-            print(f"could not read commit {sha}")
-            continue
-        commit = json.loads(raw)
-        found[sha] = {
-            "sha": commit["sha"],
-            "short_sha": commit["sha"][:7],
-            "message": commit["commit"]["message"].splitlines()[0],
-            "authored_at": commit["commit"]["author"]["date"],
-            "url": commit["html_url"],
-        }
-    if found:
-        (out / "commits.json").write_text(json.dumps(found, indent=2), encoding="utf-8")
-        print(f"read {len(found)} commits")
-
-
-def collect_pulls(out: Path, numbers: list[int]) -> None:
-    """Title, merge time and URL for the pull requests a defect refers to."""
-    found = {}
-    for number in numbers:
-        raw = gh("pr", "view", str(number), "--json", "number,title,url,mergedAt,state")
-        if raw is None:
-            print(f"could not read pull request {number}")
-            continue
-        found[str(number)] = json.loads(raw)
-    if found:
-        (out / "pulls.json").write_text(json.dumps(found, indent=2), encoding="utf-8")
-        print(f"read {len(found)} pull requests")
-
-
 def collect_blockers(out: Path) -> None:
     """How many open issues carry the release-blocker label."""
     listing = gh(
@@ -232,15 +189,6 @@ def main() -> None:
     collect_runs(args.out)
     collect_blockers(args.out)
     collect_production(args.out)
-
-    # Whatever the defect reports name, so the pages can render the facts about
-    # those commits and pull requests instead of repeating them.
-    referenced = defects.referenced_commits()
-    if referenced:
-        collect_commits(args.out, referenced)
-    pulls = defects.referenced_pulls()
-    if pulls:
-        collect_pulls(args.out, pulls)
 
 
 if __name__ == "__main__":

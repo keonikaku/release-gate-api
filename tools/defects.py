@@ -23,7 +23,6 @@ DEFECTS_DIR = REPO_ROOT / "docs" / "defects"
 FIELD = re.compile(r"^\*\*(?P<name>[^:*]+):\*\*\s*(?P<value>.*)$")
 SECTION = re.compile(r"^## (?P<title>.+)$")
 KEY = re.compile(r"^# (?P<key>DEF-\d+)\s*$", re.MULTILINE)
-SHA = re.compile(r"^[0-9a-f]{7,40}$")
 
 #: Fields the report must carry. Keoni's list, plus the four additions, plus the
 #: two adaptations for an API with no login. A report missing any of them does
@@ -31,29 +30,27 @@ SHA = re.compile(r"^[0-9a-f]{7,40}$")
 #: argue against.
 REQUIRED_FIELDS = (
     "Issue type",
-    "Accounts impacted",
     "Summary",
+    "Status",
     "Priority",
     "Severity",
     "Reproducibility",
-    "Status",
+    "Environment",
     "Components",
-    "Affects commit",
-    "Found on run",
-    "Regression test",
     "Existing case that should have caught it",
-    "Environment tested",
 )
 
 REQUIRED_SECTIONS = (
-    "Scope of impact",
+    "Description",
     "Errant behaviour",
     "Expected behaviour",
     "Steps to reproduce",
-    "Root cause",
-    "Detection",
-    "Resolution",
+    "Attachment",
 )
+
+#: The environments a defect can be found in. A runner description is not an
+#: environment: a tester picks from the promotion path.
+ENVIRONMENTS = ("DEV", "SIT", "INT", "non-live", "production")
 
 #: Fields that are part of the template and may honestly have no value on a
 #: given defect. A report is a form as well as a record: a field carrying N/A
@@ -74,10 +71,13 @@ DISPLAY_FIELDS = (
     "Priority",
     "Severity",
     "Reproducibility",
+    "Environment",
     "Components",
     "Labels",
-    "Accounts impacted",
-    "Environment tested",
+    "Affects version",
+    "Fix version",
+    "Deferral approved by",
+    "Deferral note",
 )
 
 #: Required fields the renderer shows as the heading of the record rather than
@@ -87,18 +87,14 @@ HEADING_FIELDS = ("Summary",)
 #: Required fields that the renderer handles individually rather than in the
 #: block above, because each one resolves to a link.
 LINKED_FIELDS = (
-    "Affects commit",
-    "Found on run",
-    "Regression test",
     "Existing case that should have caught it",
+    "Failing test",
 )
 
 
-#: Fields whose value is a commit SHA, resolved against GitHub at build time.
-COMMIT_FIELDS = ("Affects commit", "Fix commit", "Regression commit")
-
-#: Fields whose value is a pull request number.
-PULL_FIELDS = ("Fix pull request", "Introduced by pull request")
+#: Statuses that mean the defect is still live. A deferred defect is open: the
+#: decision to ship without fixing it is a risk acceptance, not a closure.
+OPEN_STATUSES = ("Open", "Deferred", "In progress", "Reopened")
 
 
 @dataclass(frozen=True)
@@ -115,27 +111,31 @@ class Defect:
         return self.fields.get("Summary", "")
 
     @property
+    def is_open(self) -> bool:
+        """True when this defect is still live, deferral included."""
+        return self.fields.get("Status", "") in OPEN_STATUSES
+
+    @property
+    def failing_test(self) -> str:
+        """Node ID of the test that currently fails because of this defect."""
+        return self.fields.get("Failing test", "")
+
+    @property
     def problems(self) -> list[str]:
-        """Everything missing from this report."""
+        """Everything missing or wrong in this report."""
         missing_fields = [f for f in REQUIRED_FIELDS if not self.fields.get(f)]
         missing_sections = [s for s in REQUIRED_SECTIONS if not self.sections.get(s)]
-        return [f"{self.key}: no {name}" for name in missing_fields + missing_sections]
+        faults = [f"{self.key}: no {name}" for name in missing_fields + missing_sections]
 
-    def commits(self) -> dict[str, str]:
-        """Field name to SHA, for the commit fields that are filled in."""
-        return {
-            name: self.fields[name]
-            for name in COMMIT_FIELDS
-            if SHA.match(self.fields.get(name, ""))
-        }
-
-    def pulls(self) -> dict[str, int]:
-        """Field name to pull request number, for the fields that are filled in."""
-        return {
-            name: int(self.fields[name])
-            for name in PULL_FIELDS
-            if self.fields.get(name, "").isdigit()
-        }
+        environment = self.fields.get("Environment", "")
+        if environment and environment not in ENVIRONMENTS:
+            faults.append(
+                f"{self.key}: Environment is {environment!r}, not one of "
+                f"{', '.join(ENVIRONMENTS)}"
+            )
+        if self.is_open and not self.fields.get("Fix version"):
+            faults.append(f"{self.key}: is open and names no fix version")
+        return faults
 
 
 def parse(path: Path) -> Defect | None:
@@ -180,41 +180,24 @@ def load(directory: Path | None = None) -> tuple[Defect, ...]:
     return tuple(defect for defect in found if defect is not None)
 
 
-def referenced_commits(directory: Path | None = None) -> list[str]:
-    """Every commit SHA named by any report, for the collector to resolve."""
-    seen: dict[str, None] = {}
-    for defect in load(directory):
-        for sha in defect.commits().values():
-            seen[sha] = None
-    return list(seen)
-
-
-def referenced_pulls(directory: Path | None = None) -> list[int]:
-    """Every pull request number named by any report."""
-    seen: dict[int, None] = {}
-    for defect in load(directory):
-        for number in defect.pulls().values():
-            seen[number] = None
-    return list(seen)
-
-
 def referenced_tests(directory: Path | None = None) -> list[str]:
-    """Node IDs of the regression tests the reports name."""
-    return [
-        defect.fields["Regression test"]
-        for defect in load(directory)
-        if defect.fields.get("Regression test")
-    ]
+    """Node IDs of the tests the reports name, failing or regression."""
+    names = []
+    for defect in load(directory):
+        for field_name in ("Failing test", "Regression test"):
+            value = defect.fields.get(field_name, "")
+            if value and "::" in value:
+                names.append(value)
+    return names
 
 
-def ordering(commits: dict, defect: Defect) -> tuple[str, str] | None:
-    """The regression and fix timestamps, when both commits are known.
+def open_defects(directory: Path | None = None) -> tuple[Defect, ...]:
+    """Defects that are still live, deferral included."""
+    return tuple(defect for defect in load(directory) if defect.is_open)
 
-    Returned as a pair rather than a sentence so the page can show the two
-    values and let the reader compare them.
-    """
-    regression = commits.get(defect.fields.get("Regression commit", ""))
-    fix = commits.get(defect.fields.get("Fix commit", ""))
-    if not regression or not fix:
-        return None
-    return regression["authored_at"], fix["authored_at"]
+
+def by_failing_test(directory: Path | None = None) -> dict[str, Defect]:
+    """Node ID to the open defect that explains why it fails."""
+    return {
+        defect.failing_test: defect for defect in load(directory) if defect.failing_test
+    }
