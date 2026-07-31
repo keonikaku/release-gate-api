@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>How this was built</title>
+<title>Defect report</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -79,60 +79,77 @@ footer{border-top:1px solid var(--line);margin-top:56px;padding-top:20px;
 <body>
 <header class="top"><div class="wrap">
 <strong>Release Gate API</strong>
-<nav><a href="index.html">API tests</a><a href="defects.html">Defect report</a><a href="evidence.html">Request and response log</a><a href="api.html">The API</a><a href="pipeline.html">Pipeline</a><a href="demo.html">When a build fails</a><a href="traceability.html">Traceability</a><a href="team.html" class="here">How it was built</a></nav>
+<nav><a href="index.html">API tests</a><a href="defects.html" class="here">Defect report</a><a href="evidence.html">Request and response log</a><a href="api.html">The API</a><a href="pipeline.html">Pipeline</a><a href="demo.html">When a build fails</a><a href="traceability.html">Traceability</a><a href="team.html">How it was built</a></nav>
 </div></header>
 <main class="wrap">
 
-<h1>How this was built</h1>
-<p class="lede">The work was divided by role, with the separation of duties
-written down before it started. The column that matters is the third one: what
-each role is not allowed to do.</p>
+<h1>Defect report</h1>
+<p class="lede">A defect found against this service, written the way a tester
+raises one: enough to reproduce it and decide what to do about it, and nothing
+that belongs in a stand up. It is open, deferred to the next release, and
+carried by a test that fails on every build.</p>
 
+<div class="note"><strong>This is a defect report in Jira export format. It was
+not exported from a Jira instance</strong>, because this project has none. The
+fields and the structure are what would be raised against a real tracker, and
+the attachment is the request and response captured by the suite rather than a
+screenshot pasted in.</div>
+
+<p>The defect is linked to the test case that fails because of it and the
+requirement that case belongs to, on the
+<a href="traceability.html">traceability page</a>.</p>
+
+
+<div class="card" style="margin:22px 0">
+<h2>DEF-002: The gate accepts a change whose implementation window ends before it starts <span class="pill bad">Deferred</span></h2>
 <table>
-<tr><th>Role</th><th>Responsible for</th><th>May not</th><th>Gate before merge</th></tr>
-<tr><td class="k">Requirements and approval</td><td>the rules, the risk calls,
-every merge</td><td>-</td><td>-</td></tr>
-<tr><td class="k">Planning</td><td>scope, sequence, acceptance criteria</td>
-<td>write production code</td><td>-</td></tr>
-<tr><td class="k">Build</td><td>implementation, on branches</td>
-<td>push to <code>main</code>; approve its own work</td>
-<td>verification must pass</td></tr>
-<tr><td class="k">Verification</td><td>independent audit against the acceptance
-criteria</td><td>write the code it audits</td><td>-</td></tr>
-<tr><td class="k">Writing</td><td>wording on published surfaces</td>
-<td>invent facts</td><td>-</td></tr>
+<tr><td class='k'>Issue type</td><td>Bug</td></tr><tr><td class='k'>Status</td><td>Deferred</td></tr><tr><td class='k'>Priority</td><td>P3 Medium</td></tr><tr><td class='k'>Reproducibility</td><td>Always</td></tr><tr><td class='k'>Environment</td><td>non-live</td></tr><tr><td class='k'>Components</td><td>API, Validation</td></tr><tr><td class='k'>Labels</td><td>api, validation, known-defect</td></tr><tr><td class='k'>Affects version</td><td>0.1.0</td></tr><tr><td class='k'>Fix version</td><td>0.2.0</td></tr>
+<tr><td class="k">Existing case that should have caught it</td>
+<td>N/A</td></tr>
+<tr><td class='k'>Failing test</td><td class='mono'>tests/integration/test_change_api.py::test_an_implementation_window_that_ends_before_it_starts_is_refused</td></tr>
 </table>
+<h3>Description</h3><p>A change request carries an implementation start and an implementation end. Each is validated on its own: both have to be real timestamps with a timezone. Nothing compares them to each other, so a window that ends before it begins is accepted and the change passes the gate.</p><h3>Errant behaviour</h3><p>Submitting a change with <code>implementation_start</code> of <code>2026-08-02T02:00:00+00:00</code> and <code>implementation_end</code> of <code>2026-08-01T22:00:00+00:00</code>, four hours earlier, returns 200 and moves the change to <code>submitted</code>. The gate raises no violation.</p><h3>Expected behaviour</h3><p>The submission is refused with 400 and a violation saying the implementation window ends before it starts. A change cannot finish being implemented before it has begun, and an implementation window is the field the on call requirement in REQ-1.6 is measured against, so a reversed one makes that check meaningless.</p><h3>Steps to reproduce</h3><p>1. <code>POST /changes</code> with a valid submission body, setting <code>implementation_start</code>    to <code>2026-08-02T02:00:00+00:00</code> and <code>implementation_end</code> to    <code>2026-08-01T22:00:00+00:00</code>. 2. The change is created and returns 201. 3. <code>POST /changes/{id}/submit</code>. 4. Observe 200 and a state of <code>submitted</code>. Expected 400 and a violation.</p><h3>Attachment</h3><p>Captured from the run that generated this page, not pasted in.</p>
+<pre>POST /changes/ecc84f48-7c68-48b3-ae89-0b981c8d2ffd/submit
+returned 200
 
-<div class="note">The rule that costs something: <strong>the build role cannot
-approve its own work, and cannot merge it.</strong> <code>main</code> is
-protected, both gates are required, and force pushes are refused by the
-platform rather than by agreement.</div>
-
-<h2>What is inspectable</h2>
-<table>
-<tr><th>Claim</th><th>Where to check it</th></tr>
-<tr><td class="k">History is not tidied</td>
-<td>squash and rebase merging are disabled on the repository, so every merge
-keeps its commits, including the corrections</td></tr>
-<tr><td class="k">Corrections are preserved</td>
-<td><a href="https://github.com/keonikaku/release-gate-api/commits/main">the commit log</a>: a commit that corrects
-an earlier one says what was wrong</td></tr>
-<tr><td class="k">The gate blocks</td>
-<td><a href="https://github.com/keonikaku/release-gate-api/actions/workflows/post-merge.yml">run history</a>, where a
-failed verification leaves promotion skipped</td></tr>
-<tr><td class="k">Requirements came first</td>
-<td>the requirements document is the first commit in the repository</td></tr>
-<tr><td class="k">The test design came before the suite</td>
-<td><code>docs/test-design.md</code> is committed before any test file</td></tr>
-</table>
-
-<h2>On attribution, plainly</h2>
-<p>Commits in this repository are authored under one GitHub account. What is
-inspectable is the sequence of the work and what each change says about itself,
-not a per commit signature for each role. Saying so is cheaper than implying an
-attribution the git history does not carry.</p>
-
-<p class="dim">Generated from commit <code>76ed42d</code>.</p>
+{
+  &quot;id&quot;: &quot;ecc84f48-7c68-48b3-ae89-0b981c8d2ffd&quot;,
+  &quot;state&quot;: &quot;submitted&quot;,
+  &quot;created_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
+  &quot;updated_at&quot;: &quot;2026-07-29T12:00:00Z&quot;,
+  &quot;submission&quot;: {
+    &quot;title&quot;: &quot;Payments service 4.2 sprint release&quot;,
+    &quot;release_type&quot;: &quot;sprint&quot;,
+    &quot;scrum_team&quot;: &quot;payments&quot;,
+    &quot;submitter&quot;: &quot;a.rivera&quot;,
+    &quot;fix_version&quot;: &quot;2026.07.1&quot;,
+    &quot;implementation_start&quot;: &quot;2026-08-02T02:00:00Z&quot;,
+    &quot;implementation_end&quot;: &quot;2026-08-01T22:00:00Z&quot;,
+    &quot;rollback_plan&quot;: &quot;Redeploy 4.1.3 from the previous tag, verify smoke suite.&quot;,
+    &quot;jira_ticket&quot;: &quot;PAY-1150&quot;,
+    &quot;test_evidence&quot;: [
+      {
+        &quot;environment&quot;: &quot;dev&quot;,
+        &quot;passed&quot;: true,
+        &quot;reference&quot;: &quot;run-9001&quot;
+      },
+      {
+        &quot;environment&quot;: &quot;qa&quot;,
+        &quot;passed&quot;: true,
+        &quot;reference&quot;: &quot;run-9002&quot;
+      },
+      {
+        &quot;environment&quot;: &quot;bat&quot;,
+        &quot;passed&quot;: true,
+        &quot;reference&quot;: &quot;run-9003&quot;
+      }
+    ],
+   
+... 1282 more characters</pre>
+<p class="dim">Case <code>test_an_implementation_window_that_ends_before_it_starts_is_refused</code>,
+outcome <code>xfailed</code>, captured at commit
+<code>76ed42d</code>.</p>
+</div>
 
 <footer>
 Every page here is generated by the post-merge workflow from the artifacts of a

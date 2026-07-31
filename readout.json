@@ -1,20 +1,20 @@
 {
   "decision": "GO",
-  "commit_sha": "399e7203b41111256032b452e5591de76d9f7cff",
-  "generated_at": "2026-07-30T20:29:58.590506+00:00",
-  "run_id": "30579350655",
+  "commit_sha": "76ed42d9b7e6d385abb9a2db0cbb6c81d0dae6cb",
+  "generated_at": "2026-07-31T03:15:57.332141+00:00",
+  "run_id": "30601100317",
   "criteria": [
     {
       "id": "C1",
       "statement": "The full suite passes on this commit.",
       "verdict": "MET",
-      "detail": "227 of 227 cases passed."
+      "detail": "239 of 240 cases passed."
     },
     {
       "id": "C2",
       "statement": "No case was skipped, so a pass is the whole suite passing.",
       "verdict": "MET",
-      "detail": "227 cases ran, none skipped."
+      "detail": "240 cases ran, none skipped."
     },
     {
       "id": "C3",
@@ -33,6 +33,12 @@
       "statement": "No open issue is labelled release-blocker.",
       "verdict": "MET",
       "detail": "Zero open release-blocker issues."
+    },
+    {
+      "id": "C6",
+      "statement": "Every expected failure is tracked by an open defect.",
+      "verdict": "MET",
+      "detail": "1 expected failure, tracked by DEF-002."
     }
   ]
 }
