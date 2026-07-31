@@ -45,7 +45,7 @@ def created_change(client, **overrides) -> dict:
 
 
 def test_the_service_publishes_an_openapi_document(openapi):
-    """Check the service publishes its OpenAPI document.
+    """Confirm the service publishes a spec a consumer can code against.
 
     The spec is served by the application, generated from the code.
 
@@ -69,7 +69,7 @@ def test_the_service_publishes_an_openapi_document(openapi):
 
 
 def test_the_published_version_matches_the_service_version(openapi):
-    """Check the published version matches the version the service runs.
+    """Confirm the spec version matches the version the service is running.
 
     The version in the spec is the version the service reports at /healthz.
 
@@ -91,7 +91,7 @@ def test_the_published_version_matches_the_service_version(openapi):
 
 
 def test_health_response_matches_the_documented_schema(client, openapi):
-    """Validate the health response against the published schema.
+    """Confirm the health response matches what the spec promises.
 
     /healthz returns what the spec says it returns.
 
@@ -115,7 +115,7 @@ def test_health_response_matches_the_documented_schema(client, openapi):
 
 
 def test_created_change_matches_the_documented_schema(client, openapi):
-    """Validate a created change against the published schema.
+    """Confirm a created change matches what the spec promises.
 
     The 201 body validates against the declared ChangeRecord schema.
 
@@ -137,7 +137,7 @@ def test_created_change_matches_the_documented_schema(client, openapi):
 
 
 def test_read_change_matches_the_documented_schema(client, openapi):
-    """Validate a change read back against the published schema.
+    """Confirm a change read back matches what the spec promises.
 
     The 200 body from a read validates against the declared schema.
 
@@ -163,7 +163,7 @@ def test_read_change_matches_the_documented_schema(client, openapi):
 
 
 def test_submitted_change_matches_the_documented_schema(client, openapi):
-    """Validate an accepted submission against the published schema.
+    """Confirm an accepted submission matches what the spec promises.
 
     The 200 body from a successful submission validates.
 
@@ -189,7 +189,7 @@ def test_submitted_change_matches_the_documented_schema(client, openapi):
 
 
 def test_rejection_body_matches_the_documented_schema(client, openapi):
-    """Validate a refused submission against the published schema.
+    """Confirm a refused submission matches what the spec promises.
 
     A refusal is described by the spec, not just returned by the code.
 
@@ -215,7 +215,7 @@ def test_rejection_body_matches_the_documented_schema(client, openapi):
 
 
 def test_illegal_transition_body_matches_the_documented_schema(client, openapi):
-    """Validate a refused transition against the published schema.
+    """Confirm a refused transition matches what the spec promises.
 
     A 409 carries the rule, both states and the legal alternatives, exactly as documented.
 
@@ -245,7 +245,7 @@ def test_illegal_transition_body_matches_the_documented_schema(client, openapi):
 
 
 def test_not_found_body_matches_the_documented_schema(client, openapi):
-    """Validate a not found response against the published schema.
+    """Confirm a not found response matches what the spec promises.
 
     A 404 body is documented too.
 
@@ -268,7 +268,7 @@ def test_not_found_body_matches_the_documented_schema(client, openapi):
 
 
 def test_schema_error_body_matches_the_documented_schema(client, openapi):
-    """Validate a malformed request error against the published schema.
+    """Confirm a malformed request error matches what the spec promises.
 
     A malformed payload returns the framework's documented 422 shape.
 
@@ -294,7 +294,7 @@ def test_schema_error_body_matches_the_documented_schema(client, openapi):
 
 
 def test_a_response_carrying_an_undocumented_field_would_fail(client, openapi):
-    """Validate a response carrying a field the published schema does not declare.
+    """Confirm a response with an undeclared field is caught as a contract break.
 
     The check runs in both directions: an extra field is a contract break.
 
@@ -321,7 +321,7 @@ def test_a_response_carrying_an_undocumented_field_would_fail(client, openapi):
 
 
 def test_every_operation_declares_a_summary(openapi):
-    """Check every documented operation carries a summary.
+    """Confirm every operation the spec lists is named.
 
     Every documented operation carries a summary, taken from its docstring.
 
@@ -348,7 +348,7 @@ def test_every_operation_declares_a_summary(openapi):
 
 
 def test_every_error_response_declares_a_schema(openapi):
-    """Check every documented error response names a body schema.
+    """Confirm every error the spec lists describes the body it returns.
 
     Every 4xx the spec lists has a body schema attached.
 
