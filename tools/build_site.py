@@ -333,17 +333,10 @@ requirement that case belongs to.</p>
 <th>Requirement</th><th>Fix version</th></tr>
 {"".join(rows)}
 </table>
-<div class="note">DEF-001 traces to no single requirement, and saying so is more
-useful than forcing a mapping. It made every endpoint that touches stored state
-return 500, so every requirement was unreachable while it was live. DEF-002 sits
-under REQ-1, the submission rules, because the field it fails to validate is part
-of a submission.</div>"""
+<div class="note">A defect traces to the requirement its failing case belongs
+to, and where there is no single one the table says so rather than forcing a
+mapping.</div>"""
 
-
-def defect_key(data: Inputs) -> str:
-    """The key of the first defect report, for linking from other pages."""
-    reports = defects.load()
-    return reports[0].key if reports else "the defect report"
 
 
 def failure_section(data: Inputs) -> str:
@@ -363,11 +356,11 @@ def failure_section(data: Inputs) -> str:
         return ""
     return f"""
 <h2>What it looks like when a case fails</h2>
-<div class="note">Every row above passes, and on this run they did. So here is a
-real failure from this repository's history rather than a manufactured one. A
-change was merged carrying a defect, the whole suite still passed, and this is
-the check that caught it. The defect was introduced deliberately to exercise the
-process, and it was reverted immediately afterwards.</div>
+<div class="note">The defect above is one this project chose to carry. This is a
+different kind of failure: one the pipeline refused to let through. A change was
+merged, the whole suite still passed, and this check caught it anyway. That
+defect was introduced deliberately to exercise the process and was reverted
+immediately afterwards.</div>
 <div class="card">
 <pre>{esc(log)}</pre>
 <table>
@@ -383,10 +376,8 @@ promoted and production stayed on the previous version</td></tr>
 <td><a href="{esc(failure.get("url"))}">{esc(failure.get("url"))}</a>,
 {time_tag(failure.get("created_at"))}</td></tr>
 </table>
-<p class="dim">Those lines are the run log, not a transcript of it. It is
-written up as <a href="defects.html">{esc(defect_key(data))}</a> with the fields
-a development team would need, and
-<a href="demo.html">when a build fails</a> covers what the pipeline did next.</p>
+<p class="dim">Those lines are the run log, not a transcript of it.
+<a href="demo.html">When a build fails</a> covers what the pipeline did next.</p>
 </div>
 """
 
@@ -499,19 +490,19 @@ def defect_page(data: Inputs) -> str:
 <p class="lede">No defect reports have been written.</p>"""
 
     return f"""
-<h1>Defect reports</h1>
-<p class="lede">Defects found against this service, written the way a tester
+<h1>Defect report</h1>
+<p class="lede">A defect found against this service, written the way a tester
 raises one: enough to reproduce it and decide what to do about it, and nothing
-that belongs in a stand up. One is closed. One is open and deferred, with a
-failing test carrying it.</p>
+that belongs in a stand up. It is open, deferred to the next release, and
+carried by a test that fails on every build.</p>
 
 <div class="note"><strong>This is a defect report in Jira export format. It was
 not exported from a Jira instance</strong>, because this project has none. The
 fields and the structure are what would be raised against a real tracker, and
-the attachment on each report is the request and response captured by the suite
-rather than a screenshot pasted in.</div>
+the attachment is the request and response captured by the suite rather than a
+screenshot pasted in.</div>
 
-<p>Each defect is linked to the test case that fails because of it and the
+<p>The defect is linked to the test case that fails because of it and the
 requirement that case belongs to, on the
 <a href="traceability.html">traceability page</a>.</p>
 
@@ -1408,7 +1399,7 @@ def build(reports: Path, ledger: Path, out: Path, sha: str, run_id: str) -> list
         ),
         "demo.html": ("When a build fails, it does not ship", demo_page(data)),
         "traceability.html": ("Traceability", traceability_page(data)),
-        "defects.html": ("Defect reports", defect_page(data)),
+        "defects.html": ("Defect report", defect_page(data)),
         "evidence.html": ("Captured exchanges", evidence_page(data)),
         "api.html": ("API", api_page(data)),
         "team.html": ("How this was built", team_page(data)),
