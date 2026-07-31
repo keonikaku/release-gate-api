@@ -19,12 +19,30 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from tools import api_cases, evidence, readout, results, risk, runs, traceability
-from tools.render import esc, inline_markdown, outcome_pill, page, pill, time_tag
+from tools import (
+    api_cases,
+    defects,
+    evidence,
+    readout,
+    results,
+    risk,
+    runs,
+    traceability,
+)
+from tools.render import (
+    esc,
+    inline_markdown,
+    outcome_pill,
+    page,
+    parse_iso,
+    pill,
+    time_tag,
+)
 
 REPO = "keonikaku/release-gate-api"
 
@@ -48,6 +66,8 @@ class Inputs:
     openapi: dict | None
     gh_runs: list[dict]
     failure_log: dict | None
+    commits: dict
+    pulls: dict
     production: dict | None
     open_blockers: int | None
     sha: str
@@ -80,6 +100,8 @@ def gather(reports: Path, ledger: Path, sha: str, run_id: str) -> Inputs:
         openapi=load_json(reports / "openapi.json"),
         gh_runs=gh_runs if isinstance(gh_runs, list) else [],
         failure_log=load_json(reports / "failure-log.json"),
+        commits=load_json(reports / "commits.json") or {},
+        pulls=load_json(reports / "pulls.json") or {},
         production=load_json(reports / "production.json"),
         open_blockers=(blockers or {}).get("open") if isinstance(blockers, dict) else None,
         sha=sha,
@@ -209,6 +231,68 @@ def trimmed_body(body: object, limit: int = 900) -> str:
     return text[:limit] + f"\n... {len(text) - limit} more characters"
 
 
+def seconds_between(earlier: str, later: str) -> str:
+    """How far apart two timestamps are, when both can be read."""
+    first, second = parse_iso(earlier), parse_iso(later)
+    if not first or not second:
+        return ""
+    gap = int((second - first).total_seconds())
+    if gap <= 0:
+        return ""
+    unit = "second" if gap == 1 else "seconds"
+    return f", {gap} {unit} later"
+
+
+def defect_trace_section(data: Inputs) -> str:
+    """Defect to test case to requirement, which is the chain that matters.
+
+    A traceability matrix that stops at requirement and test case is half a
+    matrix. The third column is what the defects found, and whether anything
+    now covers them.
+    """
+    reports = defects.load()
+    if not reports:
+        return ""
+
+    cases = {case.node_id: case for case in data.cases}
+    rows = []
+    for report in reports:
+        node_id = report.fields.get("Regression test", "")
+        case = cases.get(node_id)
+        covers = ", ".join(case.covers) if case and case.covers else "no single requirement"
+        rows.append(
+            f"""<tr>
+<td class="k mono"><a href="defects.html">{esc(report.key)}</a></td>
+<td class="k">{esc(report.summary)}</td>
+<td>{esc(report.fields.get("Existing case that should have caught it", "-"))}</td>
+<td class="mono">{esc(case.name) if case else esc(node_id) or "-"}</td>
+<td>{esc(covers)}</td>
+</tr>"""
+        )
+
+    return f"""
+<h2>Defects</h2>
+<p>The third leg of the chain. A matrix that maps requirements to test cases and
+stops there does not say what the tests missed, and what was added because of it.</p>
+<table>
+<tr><th>Defect</th><th>Summary</th><th>Case that should have caught it</th>
+<th>Regression case added</th><th>Requirement</th></tr>
+{"".join(rows)}
+</table>
+<div class="note">DEF-001 traces to no single requirement, and saying so is more
+useful than forcing a mapping. The defect made every endpoint that touches stored
+state return 500, so every requirement the service enforces was unreachable while
+it was live. What it traces to precisely is a gap in coverage: no case exercised
+the wiring that opens the real database, which is why 201 passing tests could not
+see it.</div>"""
+
+
+def defect_key(data: Inputs) -> str:
+    """The key of the first defect report, for linking from other pages."""
+    reports = defects.load()
+    return reports[0].key if reports else "the defect report"
+
+
 def failure_section(data: Inputs) -> str:
     """The one real failure, taken out of GitHub's log for that run.
 
@@ -246,8 +330,10 @@ promoted and production stayed on the previous version</td></tr>
 <td><a href="{esc(failure.get("url"))}">{esc(failure.get("url"))}</a>,
 {time_tag(failure.get("created_at"))}</td></tr>
 </table>
-<p class="dim">Those lines are the run log, not a transcript of it. See
-<a href="demo.html">when a build fails</a> for the rest of what happened.</p>
+<p class="dim">Those lines are the run log, not a transcript of it. It is
+written up as <a href="defects.html">{esc(defect_key(data))}</a> with the fields
+a development team would need, and
+<a href="demo.html">when a build fails</a> covers what the pipeline did next.</p>
 </div>
 """
 
@@ -274,6 +360,180 @@ become the same event. The reasoning is recorded in
 <a href="{REPO_URL}/blob/main/docs/decisions/0002-status-codes.md">decision
 0002</a>, and there are {len(grouped[first])} cases on one and
 {len(grouped[second])} on the other.</div>"""
+
+
+MARKDOWN_TABLE_ROW = "|"
+
+
+def markdown_block(text: str) -> str:
+    """Render the prose of a defect section: paragraphs, lists and one table."""
+    blocks = []
+    for chunk in text.split("\n\n"):
+        lines = [line.rstrip() for line in chunk.strip().splitlines() if line.strip()]
+        if not lines:
+            continue
+        if all(line.startswith(MARKDOWN_TABLE_ROW) for line in lines):
+            blocks.append(markdown_table(lines))
+        elif all(re.match(r"^(\d+\.|[-*])\s", line) for line in lines):
+            items = "".join(
+                f"<li>{inline_markdown(re.sub(r'^(\d+\.|[-*])\s+', '', line))}</li>"
+                for line in lines
+            )
+            tag = "ol" if re.match(r"^\d+\.", lines[0]) else "ul"
+            blocks.append(f"<{tag}>{items}</{tag}>")
+        else:
+            blocks.append(f"<p>{inline_markdown(' '.join(lines))}</p>")
+    return "".join(blocks)
+
+
+def markdown_table(lines: list[str]) -> str:
+    """A pipe table from a defect section."""
+    rows = []
+    for index, line in enumerate(lines):
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if all(set(cell) <= {"-", ":"} for cell in cells if cell):
+            continue
+        tag = "th" if index == 0 else "td"
+        rendered = "".join(f"<{tag}>{inline_markdown(cell)}</{tag}>" for cell in cells)
+        rows.append(f"<tr>{rendered}</tr>")
+    return f"<table>{''.join(rows)}</table>"
+
+
+def defect_page(data: Inputs) -> str:
+    """Defect reports, in the shape a tracker would export them."""
+    reports = defects.load()
+    if not reports:
+        return """
+<h1>Defects</h1>
+<p class="lede">No defect reports have been written.</p>"""
+
+    return f"""
+<h1>Defect reports</h1>
+<p class="lede">A defect found by this pipeline, written up the way it would be
+handed to a development team. Requirement, test case and defect all reference
+each other, so a reader can follow any one of them to the other two.</p>
+
+<div class="note"><strong>This is a defect report in Jira export format. It was
+not exported from a Jira instance</strong>, because this project has none. The
+fields, the structure and the content are what would be raised against a real
+tracker, and every identifier in it (commits, runs, pull requests) links to the
+real record on GitHub.</div>
+
+{"".join(defect_record(report, data) for report in reports)}
+"""
+
+
+def defect_record(report: defects.Defect, data: Inputs) -> str:
+    """One defect, as a tracker would show it."""
+    commits = data.commits
+    pulls = data.pulls
+
+    def commit_cell(field_name: str) -> str:
+        sha = report.fields.get(field_name, "")
+        found = commits.get(sha)
+        if not found:
+            return f"<span class='mono'>{esc(sha) or '-'}</span>"
+        return (
+            f"<a class='mono' href='{esc(found['url'])}'>{esc(found['short_sha'])}</a> "
+            f"{esc(found['message'])}"
+        )
+
+    def pull_cell(field_name: str) -> str:
+        number = report.fields.get(field_name, "")
+        found = pulls.get(number)
+        if not found:
+            return f"<span class='mono'>{esc(number) or '-'}</span>"
+        return (
+            f"<a href='{esc(found['url'])}'>#{esc(found['number'])}</a> "
+            f"{esc(found['title'])}"
+        )
+
+    run_id = report.fields.get("Found on run", "")
+    run_link = (
+        f"<a href='{REPO_URL}/actions/runs/{esc(run_id)}'>run {esc(run_id)}</a>"
+        if run_id
+        else "-"
+    )
+
+    order = defects.ordering(commits, report)
+    ordering_row = ""
+    if order:
+        regression_at, fix_at = order
+        regression_first = regression_at < fix_at
+        gap = seconds_between(regression_at, fix_at)
+        ordering_row = f"""<tr>
+<td class="k">Regression written before the fix</td>
+<td>{pill("yes" if regression_first else "no", "ok" if regression_first else "bad")}
+regression committed {time_tag(regression_at, seconds=True)}, fix committed
+{time_tag(fix_at, seconds=True)}{gap}. Both timestamps come from GitHub rather
+than from this report, and that ordering is why the run history shows red before
+green rather than a single commit claiming both.</td></tr>"""
+
+    fields = "".join(
+        f"<tr><td class='k'>{esc(name)}</td><td>{inline_markdown(report.fields[name])}</td></tr>"
+        for name in (
+            "Issue type",
+            "Status",
+            "Resolution",
+            "Priority",
+            "Severity",
+            "Reproducibility",
+            "Components",
+            "Labels",
+            "Environment tested",
+        )
+        if report.fields.get(name)
+    )
+
+    sections = "".join(
+        f"<h3>{esc(title)}</h3>{markdown_block(body)}"
+        for title, body in report.sections.items()
+    )
+
+    evidence_block = failure_evidence(data)
+
+    return f"""
+<div class="card" style="margin:22px 0">
+<h2>{esc(report.key)}: {esc(report.summary)}</h2>
+<table>
+{fields}
+<tr><td class="k">Affects commit</td><td>{commit_cell("Affects commit")}</td></tr>
+<tr><td class="k">Found on</td><td>{run_link}</td></tr>
+<tr><td class="k">Fix commit</td><td>{commit_cell("Fix commit")}</td></tr>
+<tr><td class="k">Regression commit</td><td>{commit_cell("Regression commit")}</td></tr>
+{ordering_row}
+<tr><td class="k">Linked issues</td><td>{pull_cell("Introduced by pull request")}<br>
+{pull_cell("Fix pull request")}</td></tr>
+<tr><td class="k">Regression test</td>
+<td class="mono">{esc(report.fields.get("Regression test", "-"))}</td></tr>
+<tr><td class="k">Existing case that should have caught it</td>
+<td>{esc(report.fields.get("Existing case that should have caught it", "-"))}</td></tr>
+</table>
+
+<h3>Attachment: the request and the response</h3>
+<p>This API has no screen to photograph. The equivalent evidence is the exchange
+itself, captured by the pipeline at the moment of failure.</p>
+{evidence_block}
+
+{sections}
+</div>"""
+
+
+def failure_evidence(data: Inputs) -> str:
+    """The captured failure, as the attachment on the report."""
+    failure = data.failure_log
+    if not failure or not failure.get("lines"):
+        return "<p class='dim'>No captured output for this defect.</p>"
+    parsed = api_cases.parse_smoke_failure(failure["lines"])
+    log = "\n".join(failure["lines"])
+    detail = ""
+    if parsed:
+        detail = f"""<table>
+<tr><td class="k">Check</td><td>{esc(parsed["check"])}</td></tr>
+<tr><td class="k">Expected status</td><td class="mono">{esc(parsed["expected"])}</td></tr>
+<tr><td class="k">Actual status</td><td class="mono">{esc(parsed["actual"])}</td></tr>
+</table>"""
+    return f"<pre>{esc(log)}</pre>{detail}"
 
 
 def dashboard(data: Inputs, decision: readout.Readout) -> str:
@@ -878,6 +1138,8 @@ of case numbers, because a catalogue that nothing enforces drifts from the suite
 within a month. The name in the table is the name in the file, and the build
 fails if a case claims a requirement that does not exist.</p>
 
+{defect_trace_section(data)}
+
 {risk_section(data)}
 
 <h2>Stated gaps</h2>
@@ -1083,6 +1345,7 @@ def build(reports: Path, ledger: Path, out: Path, sha: str, run_id: str) -> list
         ),
         "demo.html": ("When a build fails, it does not ship", demo_page(data)),
         "traceability.html": ("Traceability", traceability_page(data)),
+        "defects.html": ("Defect reports", defect_page(data)),
         "evidence.html": ("Captured exchanges", evidence_page(data)),
         "api.html": ("API", api_page(data)),
         "team.html": ("How this was built", team_page(data)),

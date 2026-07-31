@@ -16,6 +16,7 @@ import pytest
 from tools import (
     api_cases,
     build_site,
+    defects,
     evidence,
     provenance,
     readout,
@@ -951,6 +952,8 @@ def inputs_with(ledger: list[runs.RunRow], gh_runs: list[dict]) -> object:
         openapi=None,
         gh_runs=gh_runs,
         failure_log=None,
+        commits={},
+        pulls={},
         production=None,
         open_blockers=None,
         sha="a" * 40,
@@ -1245,3 +1248,102 @@ def test_the_published_failure_numbers_come_out_of_the_log():
         "actual": "500",
     }
     assert api_cases.parse_smoke_failure(["ok    healthz responds"]) is None
+
+
+# Defect reports ---------------------------------------------------------------
+
+
+def write_defect(tmp_path, body: str):
+    """A defect report file, for the parser cases below."""
+    path = tmp_path / "DEF-001.md"
+    path.write_text(body, encoding="utf-8")
+    return path
+
+
+def test_a_defect_report_parses_into_fields_and_sections(tmp_path):
+    """The report is data, so the page renders it rather than restating it.
+
+    Layer: unit
+    Covers: none
+    Why this layer: the file is what a person edits, and everything the page
+    shows about a defect passes through this parser.
+    """
+    path = write_defect(
+        tmp_path,
+        "# DEF-001\n\n**Issue type:** Bug\n**Summary:** A thing broke\n\n"
+        "## Root cause\n\nIt was wired wrong.\n",
+    )
+    report = defects.parse(path)
+    assert report.key == "DEF-001"
+    assert report.fields["Issue type"] == "Bug"
+    assert report.summary == "A thing broke"
+    assert report.sections["Root cause"] == "It was wired wrong."
+
+
+def test_a_report_missing_a_required_field_is_reported(tmp_path):
+    """Every required field is named when it is absent.
+
+    Layer: unit
+    Covers: none
+    Why this layer: the page claims this is what a complete handover looks
+    like, so incompleteness has to fail rather than publish quietly.
+    """
+    report = defects.parse(write_defect(tmp_path, "# DEF-001\n\n**Issue type:** Bug\n"))
+    problems = report.problems
+    assert any("Severity" in problem for problem in problems)
+    assert any("Steps to reproduce" in problem for problem in problems)
+
+
+def test_commit_and_pull_references_are_identifiers(tmp_path):
+    """Only values that look like a SHA or a number are resolved.
+
+    Layer: unit
+    Covers: none
+    Why this layer: a prose value would render as unlinked text, which reads as
+    a reference to something the reader cannot open.
+    """
+    report = defects.parse(
+        write_defect(
+            tmp_path,
+            "# DEF-001\n\n**Affects commit:** 383565e\n**Fix commit:** not yet\n"
+            "**Fix pull request:** 5\n**Introduced by pull request:** unknown\n",
+        )
+    )
+    assert report.commits() == {"Affects commit": "383565e"}
+    assert report.pulls() == {"Fix pull request": 5}
+
+
+def test_the_ordering_pair_comes_from_the_commits(tmp_path):
+    """Red before green is shown as two timestamps, not asserted in prose.
+
+    Layer: unit
+    Covers: none
+    Why this layer: the claim is the strongest one the defect page makes, and
+    it is only worth anything if the two values behind it are visible.
+    """
+    report = defects.parse(
+        write_defect(
+            tmp_path,
+            "# DEF-001\n\n**Regression commit:** 5f05880\n**Fix commit:** 2e3dce5\n",
+        )
+    )
+    commits = {
+        "5f05880": {"authored_at": "2026-07-30T02:19:21Z"},
+        "2e3dce5": {"authored_at": "2026-07-30T02:19:50Z"},
+    }
+    regression_at, fix_at = defects.ordering(commits, report)
+    assert regression_at < fix_at
+    assert defects.ordering({}, report) is None
+
+
+def test_the_gap_between_two_commits_is_derived():
+    """The page states how far apart the two commits were.
+
+    Layer: unit
+    Covers: none
+    Why this layer: at minute resolution the two timestamps render identically,
+    which leaves a published claim the reader cannot check from the values.
+    """
+    gap = build_site.seconds_between("2026-07-30T02:19:21Z", "2026-07-30T02:19:50Z")
+    assert "29 seconds later" in gap
+    assert build_site.seconds_between("2026-07-30T02:19:50Z", "2026-07-30T02:19:21Z") == ""

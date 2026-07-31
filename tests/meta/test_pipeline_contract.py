@@ -211,3 +211,68 @@ def test_the_case_list_covers_the_status_codes_the_page_explains():
     declared = {case.expects for case in api_cases.build()}
     missing = sorted(set(api_cases.STATUS_MEANING) - declared)
     assert missing == [], f"status codes explained but never exercised: {missing}"
+
+
+def test_every_defect_report_carries_the_required_fields():
+    """A report with holes in it does not publish.
+
+    Layer: meta
+    Covers: none
+    Why this layer: the page argues that this is what a handover looks like, so
+    a missing field is a defect in the argument as well as in the document.
+    """
+    from tools import defects  # noqa: PLC0415 - only needed by this case
+
+    reports = defects.load()
+    assert reports, "no defect reports were parsed"
+    problems = [problem for report in reports for problem in report.problems]
+    assert problems == [], "\n".join(problems)
+
+
+def test_every_defect_names_a_regression_test_that_exists():
+    """The case a defect says now covers it is a real case.
+
+    Layer: meta
+    Covers: none
+    Why this layer: the traceability matrix links the defect to that node ID. A
+    rename would leave the matrix pointing at nothing, which is the failure the
+    matrix exists to prevent.
+    """
+    from tools import defects, traceability  # noqa: PLC0415 - only needed here
+
+    known = {case.node_id for case in traceability.test_cases()}
+    missing = [node_id for node_id in defects.referenced_tests() if node_id not in known]
+    assert missing == [], f"defect reports name tests that do not exist: {missing}"
+
+
+def test_every_defect_names_commits_that_look_like_commits():
+    """Commit and pull request references are identifiers, not prose.
+
+    Layer: meta
+    Covers: none
+    Why this layer: the page resolves these against GitHub at build time, so a
+    value that is not an identifier silently renders as bare text with no link.
+    """
+    from tools import defects  # noqa: PLC0415 - only needed by this case
+
+    for report in defects.load():
+        assert report.commits(), f"{report.key} names no commits"
+        assert report.fields.get("Found on run", "").isdigit(), (
+            f"{report.key} has no run id"
+        )
+
+
+def test_the_defect_page_says_it_is_a_format_not_an_export():
+    """The page does not imply a Jira instance that does not exist.
+
+    Layer: meta
+    Covers: none
+    Why this layer: it is the same class of care as labelling a practice
+    exercise, and the sentence is easy to lose in an edit.
+    """
+    from tools import build_site  # noqa: PLC0415 - only needed by this case
+
+    page = build_site.defect_page(
+        build_site.gather(REPO_ROOT / "no-reports", REPO_ROOT / "no-ledger.csv", "", "")
+    )
+    assert "not exported from a Jira instance" in page
