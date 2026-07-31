@@ -327,3 +327,52 @@ def test_every_required_defect_field_reaches_the_page():
     )
     missing = sorted(set(defects.REQUIRED_FIELDS) - rendered)
     assert missing == [], f"required fields that no page renders: {missing}"
+
+
+def test_every_published_case_is_complete():
+    """A case in the catalog has preconditions, numbered steps and a result.
+
+    Layer: meta
+    Covers: none
+    Why this layer: the catalog is generated from the tests, so an incomplete
+    case is a docstring nobody finished rather than a page nobody updated. It
+    has to fail here, where it is written.
+    """
+    from tools import catalog  # noqa: PLC0415 - only needed by this case
+
+    catalogue = catalog.build()
+    assert len(catalogue) >= 30
+    assert catalog.problems(catalogue) == [], "\n".join(catalog.problems(catalogue))
+
+
+def test_the_catalog_and_the_suite_hold_the_same_cases():
+    """Every annotated test appears in the catalog exactly once.
+
+    Layer: meta
+    Covers: none
+    Why this layer: a case that exists in the suite and not on the page is
+    coverage a reader cannot see, and a case on the page with no test behind it
+    is a claim with nothing under it.
+    """
+    from tools import api_cases, catalog  # noqa: PLC0415 - only needed here
+
+    published = {case.case_id for case in catalog.build()}
+    running = {case.case_id for case in api_cases.build()}
+    assert published == running
+    assert len(published) == len(catalog.build())
+
+
+def test_the_csv_export_carries_the_manual_case_columns():
+    """The export uses the same columns as the published manual cases.
+
+    Layer: meta
+    Covers: none
+    Why this layer: the point of matching the column set is that a reader can
+    put the two side by side, and a renamed column would break that quietly.
+    """
+    from tools import catalog  # noqa: PLC0415 - only needed by this case
+
+    header = catalog.to_csv(catalog.build()).splitlines()[0]
+    assert header.startswith("Title,Preconditions,Steps,Expected Result,Priority,Type")
+    for column in catalog.DERIVED_COLUMNS:
+        assert column in header

@@ -48,6 +48,12 @@ def test_health_reports_the_running_version(client):
 
     Case: API-29
     Expects: 200
+    Priority: Critical
+    Type: Smoke
+    Preconditions: The service is running.
+    Steps: 1. Request GET /healthz.
+    Expected result: The service returns 200 with a status of ok and the version it is
+        running.
     Layer: integration
     Covers: none
     Why this layer: liveness is a property of the process. There is nothing to
@@ -67,6 +73,12 @@ def test_a_new_change_is_created_in_draft(client):
 
     Case: API-20
     Expects: 201
+    Priority: Critical
+    Type: Smoke
+    Preconditions: The service is running.
+    Steps: 1. POST /changes with a complete submission body.
+    Expected result: The service returns 201 with the change record, an identifier, and
+        a state of draft.
     Layer: integration
     Covers: REQ-2
     Why this layer: the record is written by the store and read back through the
@@ -89,6 +101,13 @@ def test_a_malformed_payload_is_a_schema_error_not_a_refusal(client):
 
     Case: API-19
     Expects: 422
+    Priority: High
+    Type: Functional
+    Preconditions: The service is running.
+    Steps: 1. POST /changes with a complete submission body, but give
+        implementation_start a timestamp with no timezone.
+    Expected result: The service returns 422 rather than 400, because the request could
+        not be read at all rather than being read and refused by a rule.
     Layer: integration
     Covers: none
     Why this layer: the distinction between "I could not read this" and "I read
@@ -107,6 +126,13 @@ def test_an_unknown_field_is_rejected_by_the_schema(client):
 
     Case: API-26
     Expects: 422
+    Priority: High
+    Type: Functional
+    Preconditions: The service is running.
+    Steps: 1. POST /changes with a complete submission body and one extra field the API
+        does not define, such as approved_by.
+    Expected result: The service returns 422 and refuses the request, rather than
+        accepting it and silently dropping the field.
     Layer: integration
     Covers: none
     Why this layer: silently dropping an unknown field is how a submitter comes
@@ -125,6 +151,13 @@ def test_a_change_can_be_read_back(client):
 
     Case: API-15
     Expects: 200
+    Priority: Critical
+    Type: Smoke
+    Preconditions: The service is running.
+    Steps: 1. POST /changes with a complete submission body and note the identifier
+        returned. 2. Request GET /changes/{id} with that identifier.
+    Expected result: The read returns 200 and the record carries the same submission
+        that was sent, so what was written is what is read.
     Layer: integration
     Covers: REQ-2
     Why this layer: persistence across two requests is invisible to a unit test.
@@ -143,6 +176,12 @@ def test_an_unknown_change_is_a_404(client):
 
     Case: API-25
     Expects: 404
+    Priority: High
+    Type: Functional
+    Preconditions: The service is running. No change exists with the identifier used
+        below.
+    Steps: 1. Request GET /changes/ with an identifier that was never created.
+    Expected result: The service returns 404 with a machine readable code of not_found.
     Layer: integration
     Covers: none
     Why this layer: status code mapping is an HTTP concern.
@@ -160,6 +199,13 @@ def test_a_valid_submission_is_accepted_and_persisted(client):
 
     Case: API-23
     Expects: 200
+    Priority: Critical
+    Type: Smoke
+    Preconditions: The service is running. A submission meets every gate rule.
+    Steps: 1. POST /changes with a complete submission body. 2. Submit the change. 3.
+        Read the change back.
+    Expected result: The submission is accepted with 200 and the change reads back as
+        submitted.
     Layer: integration
     Covers: REQ-1, REQ-2
     Why this layer: the happy path end to end, which is the case a reviewer
@@ -172,11 +218,20 @@ def test_a_valid_submission_is_accepted_and_persisted(client):
 
 @pytest.mark.endpoint(SUBMIT)
 def test_a_refused_submission_names_every_rule_it_broke(client):
-    """A refusal is a 400 listing every violation, and the change stays in
-    Draft.
+    """Submit a change that breaks three gate rules at once.
+
+    A refusal is a 400 listing every violation, and the change stays in Draft.
 
     Case: API-21
     Expects: 200
+    Priority: Critical
+    Type: Functional
+    Preconditions: The service is running. A submission is missing its rollback plan,
+        its Jira ticket and all testing evidence.
+    Steps: 1. POST /changes with those three things missing. 2. Submit the change. 3.
+        Read the change back.
+    Expected result: The submission is refused with 400 listing all three violations at
+        once, and the change reads back still in draft rather than advanced.
     Layer: integration
     Covers: REQ-1
     Why this layer: the rule set is proved at the unit layer. What is proved
@@ -204,6 +259,14 @@ def test_a_spa_release_without_prod_support_is_accepted(client):
 
     Case: API-22
     Expects: 200
+    Priority: Critical
+    Type: Functional
+    Preconditions: The service is running. The release type is a single page app with
+        DevOps and Tech Lead on call and no Prod Support.
+    Steps: 1. POST /changes declaring release type spa with only those two roles on
+        call. 2. Submit the change.
+    Expected result: The submission is accepted with 200, because the on call matrix
+        does not require Prod Support for a single page app release.
     Layer: integration
     Covers: REQ-1.6
     Why this layer: duplicated from the unit layer on purpose. It is the row a
@@ -226,6 +289,13 @@ def test_a_change_missing_bat_evidence_is_refused(client):
 
     Case: API-18
     Expects: 400
+    Priority: Critical
+    Type: Functional
+    Preconditions: The service is running. Testing evidence is available for dev and QA
+        but not for BAT.
+    Steps: 1. POST /changes with evidence for dev and QA only. 2. Submit the change.
+    Expected result: The submission is refused with 400 and the violation names
+        REQ-1.2, because evidence in all three environments is required.
     Layer: integration
     Covers: REQ-1.2
     Why this layer: proves the endpoint actually reaches this rule rather than
@@ -251,6 +321,14 @@ def test_a_change_cannot_be_submitted_twice(client):
 
     Case: API-17
     Expects: 409
+    Priority: High
+    Type: Functional
+    Preconditions: The service is running. A change request has been created and
+        submitted once.
+    Steps: 1. Create a change with a complete submission body. 2. Submit it and confirm
+        it is accepted. 3. Submit the same change a second time.
+    Expected result: The second submission is refused with 409, because the change is
+        no longer in Draft.
     Layer: integration
     Covers: REQ-2
     Why this layer: needs a stored state from a previous request.
@@ -264,10 +342,19 @@ def test_a_change_cannot_be_submitted_twice(client):
 
 @pytest.mark.endpoint(SUBMIT)
 def test_submitting_an_unknown_change_is_a_404(client):
-    """Submitting a change that does not exist is a 404, not a 400.
+    """Submit a change that does not exist.
+
+    Submitting a change that does not exist is a 404, not a 400.
 
     Case: API-30
     Expects: 404
+    Priority: High
+    Type: Functional
+    Preconditions: The service is running. No change exists with the identifier used
+        below.
+    Steps: 1. POST /changes/{id}/submit using an identifier that was never created.
+    Expected result: The service returns 404 rather than attempting to validate a
+        change that does not exist.
     Layer: integration
     Covers: none
     Why this layer: the order of the checks inside the endpoint is only visible
@@ -278,10 +365,19 @@ def test_submitting_an_unknown_change_is_a_404(client):
 
 @pytest.mark.endpoint(TRANSITION)
 def test_the_lifecycle_can_be_walked_end_to_end(client):
-    """Draft to Closed through every legal state, one request at a time.
+    """Walk a change through every state from Draft to Closed.
+
+    Draft to Closed through every legal state, one request at a time.
 
     Case: API-31
     Expects: 200
+    Priority: Critical
+    Type: Functional
+    Preconditions: The service is running. A submission meets every gate rule.
+    Steps: 1. Create a change and submit it. 2. Transition it in turn to Approved,
+        Scheduled, Implementing, Verified and Closed.
+    Expected result: Every transition returns 200 and the change ends in closed, with
+        each state persisted so the next request sees what the previous one wrote.
     Layer: integration
     Covers: REQ-2
     Why this layer: the graph is proved at the unit layer. This proves each move
@@ -298,10 +394,22 @@ def test_the_lifecycle_can_be_walked_end_to_end(client):
 
 @pytest.mark.endpoint(TRANSITION)
 def test_a_change_can_be_cancelled_before_implementing(client):
-    """A scheduled change can still be cancelled.
+    """Cancel a scheduled change before implementation starts.
+
+    A scheduled change can still be cancelled.
 
     Case: API-14
     Expects: 200
+    Priority: High
+    Type: Functional
+    Preconditions: The service is running. A change request has been created and
+        submitted.
+    Steps: 1. Create a change and submit it. 2. Transition it to Approved. 3.
+        Transition it to Scheduled. 4. Transition it to Cancelled. 5. Read the change
+        back.
+    Expected result: Each transition returns 200 and the change reads back as
+        cancelled, because cancellation is allowed at any point before implementation
+        starts.
     Layer: integration
     Covers: REQ-2.1
     Why this layer: the positive half of REQ-2.1 through HTTP, beside its
@@ -315,10 +423,19 @@ def test_a_change_can_be_cancelled_before_implementing(client):
 
 @pytest.mark.endpoint(TRANSITION)
 def test_a_change_cannot_be_cancelled_once_implementing(client):
-    """Cancelling during implementation is a 409 naming REQ-2.1.
+    """Cancel a change after implementation has started.
+
+    Cancelling during implementation is a 409 naming REQ-2.1.
 
     Case: API-16
     Expects: 409
+    Priority: High
+    Type: Functional
+    Preconditions: The service is running. A change request has reached Implementing.
+    Steps: 1. Create a change, submit it, and transition it through Approved and
+        Scheduled to Implementing. 2. Request a transition to Cancelled.
+    Expected result: The transition is refused with 409 naming REQ-2.1, because a
+        change cannot be cancelled once implementation has started.
     Layer: integration
     Covers: REQ-2.1
     Why this layer: the negative half, and it asserts the rule ID a caller would
@@ -342,6 +459,13 @@ def test_an_implementing_change_cannot_return_to_approved(client):
 
     Case: API-24
     Expects: 409
+    Priority: High
+    Type: Functional
+    Preconditions: The service is running. A change request has reached Implementing.
+    Steps: 1. Create a change, submit it, and transition it through Approved and
+        Scheduled to Implementing. 2. Request a transition back to Approved.
+    Expected result: The transition is refused with 409 naming REQ-2.2, because there
+        is no route back once implementation has started.
     Layer: integration
     Covers: REQ-2.2
     Why this layer: named in the requirements, so a reviewer will look for it at
@@ -359,11 +483,22 @@ def test_an_implementing_change_cannot_return_to_approved(client):
 
 @pytest.mark.endpoint(TRANSITION)
 def test_failed_verification_cannot_close_without_rolling_back(client):
-    """REQ-2.3 through HTTP: Implementing to Closed is refused, Implementing to
+    """Close a change straight from Implementing without rolling back.
+
+    REQ-2.3 through HTTP: Implementing to Closed is refused, Implementing to
     Rolled Back is allowed.
 
     Case: API-28
     Expects: 200
+    Priority: High
+    Type: Functional
+    Preconditions: The service is running. A change request has reached Implementing.
+    Steps: 1. Create a change, submit it, and transition it through Approved and
+        Scheduled to Implementing. 2. Request a transition straight to Closed. 3.
+        Request a transition to Rolled Back.
+    Expected result: The move to Closed is refused with 409 naming REQ-2.3, and the
+        move to Rolled Back is accepted with 200, because failed verification rolls
+        back rather than closing.
     Layer: integration
     Covers: REQ-2.3
     Why this layer: both halves in one case because the second move is what
@@ -380,11 +515,21 @@ def test_failed_verification_cannot_close_without_rolling_back(client):
 
 @pytest.mark.endpoint(TRANSITION)
 def test_validation_cannot_be_stepped_around_with_a_transition(client):
-    """Moving a draft straight to Submitted is refused, so REQ-1 cannot be
-    skipped.
+    """Move a draft straight to Submitted, bypassing the gate rules.
+
+    Moving a draft straight to Submitted is refused, so REQ-1 cannot be skipped.
 
     Case: API-34
     Expects: 200
+    Priority: Critical
+    Type: Functional
+    Preconditions: The service is running. A change request exists in Draft with no
+        rollback plan.
+    Steps: 1. Create a change with no rollback plan. 2. Request a transition straight
+        to Submitted, bypassing the submit endpoint. 3. Read the change back.
+    Expected result: The transition is refused with 409 and a code of
+        validation_required, and the change reads back still in draft, so the gate
+        rules cannot be stepped around.
     Layer: integration
     Covers: REQ-1, REQ-2
     Why this layer: this is a hole in the interface rather than in the rules.
@@ -401,11 +546,19 @@ def test_validation_cannot_be_stepped_around_with_a_transition(client):
 
 @pytest.mark.endpoint(TRANSITION)
 def test_an_unknown_target_state_is_a_schema_error(client):
-    """A state that does not exist is a 422 from the schema, not a 409 from the
-    graph.
+    """Request a transition to a state the API does not define.
+
+    A state that does not exist is a 422 from the schema, not a 409 from the graph.
 
     Case: API-27
     Expects: 422
+    Priority: High
+    Type: Functional
+    Preconditions: The service is running. A change request exists in Draft.
+    Steps: 1. Create a change. 2. Request a transition to a state the API does not
+        define, such as shipped.
+    Expected result: The service returns 422 from the schema rather than 409 from the
+        lifecycle, because the value is not a state at all.
     Layer: integration
     Covers: none
     Why this layer: which layer refuses the value is an interface decision, and
@@ -418,10 +571,18 @@ def test_an_unknown_target_state_is_a_schema_error(client):
 
 @pytest.mark.endpoint(TRANSITION)
 def test_transitioning_an_unknown_change_is_a_404(client):
-    """A transition on a change that does not exist is a 404.
+    """Request a transition on a change that does not exist.
+
+    A transition on a change that does not exist is a 404.
 
     Case: API-32
     Expects: 404
+    Priority: High
+    Type: Functional
+    Preconditions: The service is running. No change exists with the identifier used
+        below.
+    Steps: 1. POST /changes/{id}/transition using an identifier that was never created.
+    Expected result: The service returns 404.
     Layer: integration
     Covers: none
     Why this layer: completes the status code matrix for this endpoint.
@@ -432,10 +593,19 @@ def test_transitioning_an_unknown_change_is_a_404(client):
 
 @pytest.mark.endpoint(CREATE)
 def test_two_changes_do_not_share_state(client):
-    """Two changes created in the same instance advance independently.
+    """Advance one change and confirm a second is unaffected.
+
+    Two changes created in the same instance advance independently.
 
     Case: API-33
     Expects: 200
+    Priority: High
+    Type: Functional
+    Preconditions: The service is running.
+    Steps: 1. Create two separate change requests. 2. Submit the first one only. 3.
+        Read both back.
+    Expected result: The first reads back as submitted and the second as draft, so the
+        two records do not share state.
     Layer: integration
     Covers: REQ-2
     Why this layer: shared state between records is a storage defect, and it
@@ -451,7 +621,9 @@ def test_two_changes_do_not_share_state(client):
 
 @pytest.mark.endpoint(CREATE)
 def test_the_real_store_wiring_opens_a_usable_database(tmp_path, monkeypatch):
-    """REGRESSION, run 2 of the demo. The dependency that wires the real store
+    """Create and read a change against the database the service configures.
+
+    REGRESSION, run 2 of the demo. The dependency that wires the real store
     honours the configured database path and opens something usable.
 
     Every other case in this suite injects its own store, so `get_store` was
@@ -504,6 +676,13 @@ def test_a_database_failure_surfaces_as_a_500(caller_client, store):
 
     Case: API-35
     Expects: 500
+    Priority: Critical
+    Type: Functional
+    Preconditions: The service is running. The database it writes to is unavailable.
+    Steps: 1. Make the database unavailable to the running service. 2. POST /changes
+        with a complete submission body.
+    Expected result: The service returns 500 rather than reporting success, so a caller
+        is never told a change was recorded when it was not.
     Layer: integration
     Covers: none
     Why this layer: the status code is produced by the framework's handling of
@@ -534,6 +713,15 @@ def test_an_implementation_window_that_ends_before_it_starts_is_refused(client):
 
     Case: API-36
     Expects: 400
+    Priority: High
+    Type: Functional
+    Preconditions: The service is running. A submission carries an implementation
+        window that ends before it starts.
+    Steps: 1. POST /changes with implementation_start set four hours after
+        implementation_end. 2. Submit the change.
+    Expected result: The submission is refused with 400 naming the reversed window.
+        This case currently fails: the gate accepts it and returns 200. Tracked as
+        DEF-002 and deferred to 0.2.0.
     Layer: integration
     Covers: REQ-1
     Why this layer: the window is two fields that are individually valid and
